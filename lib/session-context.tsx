@@ -45,3 +45,5 @@ export const SessionContextProvider: React.FC<SessionContextProviderProps> = ({ 
     </SessionContext.Provider>
   );
 };
+
+export type { SessionContextType };
