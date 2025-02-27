@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { getAuth, GoogleAuthProvider, signInWithPopup, Auth, User } from 'firebase/auth';
-import { app } from '@/lib/firebase';
+import { firebaseApp } from '@/lib/firebase';
 
 export default function LoginPage() {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-  const auth: Auth = getAuth(app);
+  const auth: Auth = getAuth(firebaseApp);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user: User | null) => {
