@@ -1,5 +1,4 @@
-
-import ChatMessage from "../chat/[roomId]/components/ChatMessage";
+import ChatMessage from "@/components/ChatMessage";
 
 export default function ChatPage() {
   return (
