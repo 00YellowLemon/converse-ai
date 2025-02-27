@@ -26,9 +26,6 @@ export const db = getFirestore(firebaseApp);
 // Create a new Google Auth provider
 export const googleProvider = new GoogleAuthProvider();
 
-
-
-
 export const addUserToFirestore = async (user: any) => {
   if (user) {
     const userRef = doc(db, 'users', user.uid);
@@ -41,3 +38,5 @@ export const addUserToFirestore = async (user: any) => {
     }, { merge: true });
   }
 };
+
+export { firebaseApp };
