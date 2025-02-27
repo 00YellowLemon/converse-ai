@@ -1,7 +1,7 @@
 import Sidebar from "@/components/Sidebar";
 import { useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { SessionContext, SessionContextType } from "@/lib/session-context";
+import { SessionContext } from "@/lib/session-context";
 import { db } from '@/lib/firebase';
 import { collection, doc, getDocs, onSnapshot, query, setDoc } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +14,7 @@ interface UserData {
   online?: boolean;
 }
 export default function Home() {
-  const { user, loading, firebaseClient } = useContext<SessionContextType>(SessionContext);
+  const { user, loading, firebaseClient } = useContext(SessionContext);
   const router = useRouter();
   const [users, setUsers] = useState<UserData[]>([]);
 

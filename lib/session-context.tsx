@@ -6,9 +6,10 @@ import { doc, setDoc } from 'firebase/firestore';
 interface SessionContextType {
   user: User | null;
   loading: boolean;
+  firebaseClient: any | null;
 }
 
-export const SessionContext = createContext<SessionContextType | null>(null);
+export const SessionContext = createContext<SessionContextType>({ user: null, loading: true, firebaseClient: null });
 
 interface SessionContextProviderProps {
   children: ReactNode;
@@ -17,6 +18,7 @@ interface SessionContextProviderProps {
 export const SessionContextProvider: React.FC<SessionContextProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [firebaseClient, setFirebaseClient] = useState<any | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -40,7 +42,7 @@ export const SessionContextProvider: React.FC<SessionContextProviderProps> = ({ 
   }, []);
 
   return (
-    <SessionContext.Provider value={{ user, loading }}>
+    <SessionContext.Provider value={{ user, loading, firebaseClient }}>
       {children}
     </SessionContext.Provider>
   );
