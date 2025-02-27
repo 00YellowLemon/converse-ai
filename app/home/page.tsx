@@ -14,7 +14,7 @@ interface UserData {
   online?: boolean;
 }
 export default function Home() {
-  const { user, loading, firebaseClient } = useContext(SessionContext);
+  const { user, loading, firebaseClient } = useContext<SessionContextType>(SessionContext);
   const router = useRouter();
   const [users, setUsers] = useState<UserData[]>([]);
 

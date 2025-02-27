@@ -1,8 +1,13 @@
 import React from 'react';
 
+interface User {
+  id: number;
+  name: string;
+}
+
 const Sidebar: React.FC = () => {
   // Dummy user data for now
-  const users = [
+  const users: User[] = [
     { id: 1, name: 'User 1' },
     { id: 2, name: 'User 2' },
     { id: 3, name: 'User 3' },

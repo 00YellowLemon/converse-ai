@@ -1,17 +1,16 @@
-jsx
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, Auth, User } from 'firebase/auth';
 import { app } from '@/lib/firebase';
 
 export default function LoginPage() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-  const auth = getAuth(app);
+  const auth: Auth = getAuth(app);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
+    const unsubscribe = auth.onAuthStateChanged((user: User | null) => {
       if (user) {
         router.push('/');
       }
@@ -26,7 +25,7 @@ export default function LoginPage() {
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
