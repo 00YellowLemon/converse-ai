@@ -2,7 +2,7 @@ tsx
 import Sidebar from "@/components/Sidebar";
 import { useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { SessionContext } from "./layout";
+import { SessionContext } from "@/lib/session-context";
 import { db } from '@/lib/firebase';
 import { collection, doc, getDocs, onSnapshot, query, setDoc } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
