@@ -1,4 +1,3 @@
-tsx
 import Sidebar from "@/components/Sidebar";
 import { useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
