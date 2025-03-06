@@ -20,12 +20,7 @@ export const SessionContextProvider: React.FC<SessionContextProviderProps> = ({ 
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [firebaseClient, setFirebaseClient] = useState<any | null>(null);
-  const [router, setRouter] = useState<any | null>(null);
-
-  useEffect(() => {
-    const routerInstance = useRouter();
-    setRouter(routerInstance);
-  }, []);
+  const router = useRouter();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
