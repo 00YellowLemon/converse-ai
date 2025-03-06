@@ -1,34 +1,30 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { getAuth, GoogleAuthProvider, signInWithPopup, Auth, User } from 'firebase/auth';
-import { firebaseApp } from '@/lib/firebase';
+import { getAuth, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { firebaseApp } from "@/lib/firebase";
 
 export default function LoginPage() {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const router = useRouter()
-  const auth: Auth = getAuth(firebaseApp);
-
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user: User | null) => {
-      if (user) {
-        router.push('/home');
-      }
-    });
-
-    return () => unsubscribe();
-  }, [auth]);
+  const router = useRouter();
+  const auth = getAuth(firebaseApp);
 
   const handleGoogleSignIn = async () => {
-    setLoading(true);
     setError(null);
-    const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
+      setLoading(true);
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      router.push("/home");
     } catch (err: any) {
-      setError(err.message);
+      console.error("Sign-in error:", err.code, err.message);
+      if (err.code === "auth/popup-closed-by-user") {
+        setError("Sign-in window closed too soon. Please try again.");
+      } else {
+        setError(err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -46,7 +42,7 @@ export default function LoginPage() {
         Continue with Google
       </button>
       {loading && <p className="mt-4">Loading...</p>}
-      {error && <p className="mt-4 text-red-500">Error: {error}</p>}
+      {error && <p className="mt-4 text-red-500">{error}</p>}
     </div>
   );
 }
