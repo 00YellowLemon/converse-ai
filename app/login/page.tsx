@@ -1,12 +1,14 @@
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/router';
+"use client"
+
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { getAuth, GoogleAuthProvider, signInWithPopup, Auth, User } from 'firebase/auth';
 import { firebaseApp } from '@/lib/firebase';
 
 export default function LoginPage() {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
+  const router = useRouter()
   const auth: Auth = getAuth(firebaseApp);
 
   useEffect(() => {
@@ -17,7 +19,7 @@ export default function LoginPage() {
     });
 
     return () => unsubscribe();
-  }, [auth, router]);
+  }, [auth]);
 
   const handleGoogleSignIn = async () => {
     setLoading(true);
