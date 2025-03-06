@@ -2,7 +2,7 @@ import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import { auth, db } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation';
 
 interface SessionContextType {
   user: User | null;
@@ -20,7 +20,12 @@ export const SessionContextProvider: React.FC<SessionContextProviderProps> = ({ 
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [firebaseClient, setFirebaseClient] = useState<any | null>(null);
-  const router = useRouter();
+  const [router, setRouter] = useState<any | null>(null);
+
+  useEffect(() => {
+    const routerInstance = useRouter();
+    setRouter(routerInstance);
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -36,7 +41,9 @@ export const SessionContextProvider: React.FC<SessionContextProviderProps> = ({ 
         setUser(user);
       } else {
         setUser(null);
-        router.push('/login');
+        if (router) {
+          router.push('/login');
+        }
       }
       setLoading(false);
     });
