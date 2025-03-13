@@ -3,7 +3,7 @@ import { useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SessionContext } from "@/lib/session-context";
 import { db } from '@/lib/firebase';
-import { collection, doc, getDocs, onSnapshot, query, setDoc } from "firebase/firestore";
+import { collection, doc, getDocs, onSnapshot, query, setDoc, addDoc } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface UserData {
@@ -12,11 +12,44 @@ interface UserData {
   email: string;
   photoURL: string;
   online?: boolean;
+  createdAt?: Date;
+  lastActive?: Date;
+  profilePictureUrl?: string;
 }
+
+interface ChatData {
+  chatId: string;
+  participants: string[];
+  createdAt: Date;
+  updatedAt: Date;
+  chatName?: string;
+}
+
+interface MessageData {
+  messageId: string;
+  senderId: string;
+  text: string;
+  timestamp: Date;
+  aiInsightRequest?: boolean;
+  aiInsightResponse?: string;
+}
+
+interface AiGlobalRequestData {
+  requestId: string;
+  userId: string;
+  query: string;
+  timestamp: Date;
+  response?: string;
+  relatedChatIds?: string[];
+}
+
 export default function Home() {
   const { user, loading, firebaseClient } = useContext(SessionContext);
   const router = useRouter();
   const [users, setUsers] = useState<UserData[]>([]);
+  const [chats, setChats] = useState<ChatData[]>([]);
+  const [messages, setMessages] = useState<MessageData[]>([]);
+  const [aiGlobalRequests, setAiGlobalRequests] = useState<AiGlobalRequestData[]>([]);
 
   useEffect(() => { 
     if (!loading && !user) {
@@ -48,6 +81,9 @@ export default function Home() {
           email: user.email,
           photoURL: user.photoURL,
           online: true,
+          createdAt: new Date(),
+          lastActive: new Date(),
+          profilePictureUrl: user.photoURL
         },{ merge: true })
     };
     setUserData();
@@ -61,6 +97,9 @@ export default function Home() {
           email: data.email,
           photoURL: data.photoURL,
           online: data.online,
+          createdAt: data.createdAt?.toDate(),
+          lastActive: data.lastActive?.toDate(),
+          profilePictureUrl: data.profilePictureUrl
         } as UserData;
       });
 
@@ -70,29 +109,129 @@ export default function Home() {
     return () => unsubscribe();
   }, [user,firebaseClient]);
 
-    return (
-      <div className="container mx-auto p-4">
-        <h1 className="text-3xl font-bold text-center mb-8">
-          Welcome, {user.displayName}!
-        </h1>
-        <p className="text-center mb-8">
-            User List
-        </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {users.map((userData) => (
-            <Card
-              key={userData.uid}
-              className="border-2 border-gray-300 hover:border-blue-500 transition-all duration-300"
-            >
-              <CardHeader>
-                <CardTitle className="font-semibold">{userData.displayName}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-600">Email: {userData.email}</p>
-                <p className="text-sm text-gray-600">Online: {userData.online ? "Yes" : "No"}</p>
-              </CardContent>
-            </Card>
-          ))}
+  useEffect(() => {
+    const chatsCollection = collection(db, "chats");
+    const setChatData = async () => {
+      await addDoc(chatsCollection, {
+        chatId: "exampleChatId",
+        participants: [user.uid],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        chatName: "Example Chat"
+      });
+    };
+    setChatData();
+
+    const unsubscribe = onSnapshot(query(chatsCollection), (snapshot) => {
+      const updatedChats: ChatData[] = snapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          chatId: data.chatId,
+          participants: data.participants,
+          createdAt: data.createdAt.toDate(),
+          updatedAt: data.updatedAt.toDate(),
+          chatName: data.chatName
+        } as ChatData;
+      });
+
+      setChats(updatedChats);
+    });
+
+    return () => unsubscribe();
+  }, [user,firebaseClient]);
+
+  useEffect(() => {
+    const messagesCollection = collection(db, "chats/exampleChatId/messages");
+    const setMessageData = async () => {
+      await addDoc(messagesCollection, {
+        messageId: "exampleMessageId",
+        senderId: user.uid,
+        text: "Hello, this is a test message.",
+        timestamp: new Date(),
+        aiInsightRequest: false,
+        aiInsightResponse: ""
+      });
+    };
+    setMessageData();
+
+    const unsubscribe = onSnapshot(query(messagesCollection), (snapshot) => {
+      const updatedMessages: MessageData[] = snapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          messageId: data.messageId,
+          senderId: data.senderId,
+          text: data.text,
+          timestamp: data.timestamp.toDate(),
+          aiInsightRequest: data.aiInsightRequest,
+          aiInsightResponse: data.aiInsightResponse
+        } as MessageData;
+      });
+
+      setMessages(updatedMessages);
+    });
+
+    return () => unsubscribe();
+  }, [user,firebaseClient]);
+
+  useEffect(() => {
+    const aiGlobalRequestsCollection = collection(db, "aiGlobalRequests");
+    const setAiGlobalRequestData = async () => {
+      await addDoc(aiGlobalRequestsCollection, {
+        requestId: "exampleRequestId",
+        userId: user.uid,
+        query: "What is the weather like today?",
+        timestamp: new Date(),
+        response: "The weather is sunny.",
+        relatedChatIds: ["exampleChatId"]
+      });
+    };
+    setAiGlobalRequestData();
+
+    const unsubscribe = onSnapshot(query(aiGlobalRequestsCollection), (snapshot) => {
+      const updatedAiGlobalRequests: AiGlobalRequestData[] = snapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          requestId: data.requestId,
+          userId: data.userId,
+          query: data.query,
+          timestamp: data.timestamp.toDate(),
+          response: data.response,
+          relatedChatIds: data.relatedChatIds
+        } as AiGlobalRequestData;
+      });
+
+      setAiGlobalRequests(updatedAiGlobalRequests);
+    });
+
+    return () => unsubscribe();
+  }, [user,firebaseClient]);
+
+  return (
+    <div className="container mx-auto p-4">
+      <h1 className="text-3xl font-bold text-center mb-8">
+        Welcome, {user.displayName}!
+      </h1>
+      <p className="text-center mb-8">
+          User List
+      </p>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {users.map((userData) => (
+          <Card
+            key={userData.uid}
+            className="border-2 border-gray-300 hover:border-blue-500 transition-all duration-300"
+          >
+            <CardHeader>
+              <CardTitle className="font-semibold">{userData.displayName}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-gray-600">Email: {userData.email}</p>
+              <p className="text-sm text-gray-600">Online: {userData.online ? "Yes" : "No"}</p>
+              <p className="text-sm text-gray-600">Created At: {userData.createdAt?.toLocaleString()}</p>
+              <p className="text-sm text-gray-600">Last Active: {userData.lastActive?.toLocaleString()}</p>
+              <p className="text-sm text-gray-600">Profile Picture URL: {userData.profilePictureUrl}</p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
     </div>
   );

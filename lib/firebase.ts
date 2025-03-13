@@ -1,6 +1,6 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithEmailAndPassword } from 'firebase/auth';
-import { getFirestore, doc, setDoc } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, collection, addDoc } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDAnH4Hm54GJ6h5gQMtExwJolE8FbHNBBg",
@@ -34,9 +34,47 @@ export const addUserToFirestore = async (user: any) => {
       name: user.displayName,
       email: user.email,
       photoURL: user.photoURL,
-      lastSeen: new Date()
+      lastSeen: new Date(),
+      createdAt: new Date(),
+      lastActive: new Date(),
+      profilePictureUrl: user.photoURL
     }, { merge: true });
   }
+};
+
+export const addChatToFirestore = async (chat: any) => {
+  const chatRef = collection(db, 'chats');
+  await addDoc(chatRef, {
+    chatId: chat.chatId,
+    participants: chat.participants,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    chatName: chat.chatName
+  });
+};
+
+export const addMessageToFirestore = async (chatId: string, message: any) => {
+  const messageRef = collection(db, `chats/${chatId}/messages`);
+  await addDoc(messageRef, {
+    messageId: message.messageId,
+    senderId: message.senderId,
+    text: message.text,
+    timestamp: new Date(),
+    aiInsightRequest: message.aiInsightRequest,
+    aiInsightResponse: message.aiInsightResponse
+  });
+};
+
+export const addAiGlobalRequestToFirestore = async (request: any) => {
+  const requestRef = collection(db, 'aiGlobalRequests');
+  await addDoc(requestRef, {
+    requestId: request.requestId,
+    userId: request.userId,
+    query: request.query,
+    timestamp: new Date(),
+    response: request.response,
+    relatedChatIds: request.relatedChatIds
+  });
 };
 
 export { firebaseApp };
