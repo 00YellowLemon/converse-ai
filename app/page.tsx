@@ -5,6 +5,7 @@ import { SessionContext } from "@/lib/session-context";
 import { db } from '@/lib/firebase';
 import { collection, doc, getDocs, onSnapshot, query, setDoc, addDoc } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import ChatTile from "@/components/ChatTile"; // Import ChatTile component
 
 interface UserData {
   uid: string;
@@ -43,6 +44,12 @@ interface AiGlobalRequestData {
   relatedChatIds?: string[];
 }
 
+interface RecentChatData {
+  chatId: string;
+  user: UserData;
+  lastMessage: string;
+}
+
 export default function Home() {
   const { user, loading, firebaseClient } = useContext(SessionContext);
   const router = useRouter();
@@ -50,6 +57,7 @@ export default function Home() {
   const [chats, setChats] = useState<ChatData[]>([]);
   const [messages, setMessages] = useState<MessageData[]>([]);
   const [aiGlobalRequests, setAiGlobalRequests] = useState<AiGlobalRequestData[]>([]);
+  const [recentChats, setRecentChats] = useState<RecentChatData[]>([]); // State for recent chats
 
   useEffect(() => { 
     if (!loading && !user) {
@@ -206,6 +214,24 @@ export default function Home() {
     return () => unsubscribe();
   }, [user,firebaseClient]);
 
+  useEffect(() => {
+    const recentChatsCollection = collection(db, "recentChats");
+    const unsubscribe = onSnapshot(query(recentChatsCollection), (snapshot) => {
+      const updatedRecentChats: RecentChatData[] = snapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          chatId: data.chatId,
+          user: data.user,
+          lastMessage: data.lastMessage
+        } as RecentChatData;
+      });
+
+      setRecentChats(updatedRecentChats);
+    });
+
+    return () => unsubscribe();
+  }, [user, firebaseClient]);
+
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-3xl font-bold text-center mb-8">
@@ -233,6 +259,15 @@ export default function Home() {
           </Card>
         ))}
       </div>
+      <h2 className="text-2xl font-bold text-center mt-8 mb-4">Recent Chats</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {recentChats.map((chat) => (
+          <ChatTile key={chat.chatId} user={chat.user} lastMessage={chat.lastMessage} />
+        ))}
+      </div>
+      <button className="fixed bottom-4 right-4 bg-blue-500 text-white py-2 px-4 rounded-full shadow-lg">
+        Chat to AI
+      </button>
     </div>
   );
 }
