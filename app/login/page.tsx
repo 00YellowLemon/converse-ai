@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword } from "firebase/auth";
 import { firebaseApp } from "@/lib/firebase";
+import { doc, setDoc, getFirestore } from "firebase/firestore";
 
 export default function LoginPage() {
   const [loading, setLoading] = useState<boolean>(false);
@@ -12,6 +13,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState<string>("");
   const router = useRouter();
   const auth = getAuth(firebaseApp);
+  const db = getFirestore(firebaseApp);
 
   const handleGoogleSignIn = async () => {
     setError(null);
@@ -19,6 +21,17 @@ export default function LoginPage() {
       setLoading(true);
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      const userDocRef = doc(db, 'users', user.uid);
+      await setDoc(userDocRef, {
+        uid: user.uid,
+        displayName: user.displayName,
+        email: user.email,
+        photoURL: user.photoURL,
+        createdAt: new Date(),
+        lastActive: new Date(),
+        profilePictureUrl: user.photoURL
+      }, { merge: true });
       router.push("/home");
     } catch (err: any) {
       console.error("Sign-in error:", err.code, err.message);
@@ -36,7 +49,18 @@ export default function LoginPage() {
     setError(null);
     try {
       setLoading(true);
-      await signInWithEmailAndPassword(auth, email, password);
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      const user = result.user;
+      const userDocRef = doc(db, 'users', user.uid);
+      await setDoc(userDocRef, {
+        uid: user.uid,
+        displayName: user.displayName,
+        email: user.email,
+        photoURL: user.photoURL,
+        createdAt: new Date(),
+        lastActive: new Date(),
+        profilePictureUrl: user.photoURL
+      }, { merge: true });
       router.push("/home");
     } catch (err: any) {
       console.error("Sign-in error:", err.code, err.message);

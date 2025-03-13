@@ -32,6 +32,9 @@ export const SessionContextProvider: React.FC<SessionContextProviderProps> = ({ 
           email: user.email,
           photoURL: user.photoURL,
           online: true,
+          createdAt: new Date(),
+          lastActive: new Date(),
+          profilePictureUrl: user.photoURL
         }, { merge: true });
         setUser(user);
       } else {
