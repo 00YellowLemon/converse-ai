@@ -42,15 +42,17 @@ export const addUserToFirestore = async (user: any) => {
   }
 };
 
-export const addChatToFirestore = async (chat: any) => {
-  const chatRef = collection(db, 'chats');
-  await addDoc(chatRef, {
-    chatId: chat.chatId,
-    participants: chat.participants,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    chatName: chat.chatName
-  });
+export const addChatToFirestore = async (chat: any, isChatStarted: boolean) => {
+  if (isChatStarted) {
+    const chatRef = collection(db, 'chats');
+    await addDoc(chatRef, {
+      chatId: chat.chatId,
+      participants: chat.participants,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      chatName: chat.chatName
+    });
+  }
 };
 
 export const addMessageToFirestore = async (chatId: string, message: any) => {
