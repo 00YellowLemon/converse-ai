@@ -1,8 +1,9 @@
 import { useContext, useEffect, useState } from "react";
 import { SessionContext } from "@/lib/session-context";
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, query } from "firebase/firestore";
+import { collection, onSnapshot, query, doc, getDoc } from "firebase/firestore";
 import ChatMessage from "@/components/ChatMessage";
+import RoomHeader from "@/app/chat/[roomId]/components/RoomHeader";
 
 interface ChatData {
   chatId: string;
@@ -25,6 +26,7 @@ export default function ChatPage() {
   const { user, loading } = useContext(SessionContext);
   const [chats, setChats] = useState<ChatData[]>([]);
   const [messages, setMessages] = useState<MessageData[]>([]);
+  const [chatUser, setChatUser] = useState<string>("");
 
   useEffect(() => {
     if (!loading && user) {
@@ -71,8 +73,32 @@ export default function ChatPage() {
     }
   }, [user, loading]);
 
+  useEffect(() => {
+    if (!loading && user) {
+      const fetchChatUser = async () => {
+        const chatDocRef = doc(db, "chats", "exampleChatId");
+        const chatDoc = await getDoc(chatDocRef);
+        if (chatDoc.exists()) {
+          const chatData = chatDoc.data();
+          const chatUserId = chatData.participants.find((participant: string) => participant !== user.uid);
+          if (chatUserId) {
+            const userDocRef = doc(db, "users", chatUserId);
+            const userDoc = await getDoc(userDocRef);
+            if (userDoc.exists()) {
+              const userData = userDoc.data();
+              setChatUser(userData.displayName);
+            }
+          }
+        }
+      };
+
+      fetchChatUser();
+    }
+  }, [user, loading]);
+
   return (
     <div className="p-8">
+      <RoomHeader chatUser={chatUser} />
       {messages.map((message) => (
         <ChatMessage
           key={message.messageId}
@@ -80,6 +106,9 @@ export default function ChatPage() {
           isUser={message.senderId === user?.uid}
         />
       ))}
+      <div className="flex justify-end mt-4">
+        <button className="bg-blue-500 text-white py-2 px-4 rounded">Ask AI</button>
+      </div>
     </div>
   );
 }

@@ -1,0 +1,15 @@
+import React from 'react';
+
+interface RoomHeaderProps {
+  chatUser: string;
+}
+
+const RoomHeader: React.FC<RoomHeaderProps> = ({ chatUser }) => {
+  return (
+    <div className="flex items-center justify-between p-4 bg-gray-800 text-white">
+      <h1 className="text-xl font-bold">{chatUser}</h1>
+    </div>
+  );
+};
+
+export default RoomHeader;
