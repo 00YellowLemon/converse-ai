@@ -1,212 +1,174 @@
 "use client";
 
-import { useContext, useEffect, useState, useRef } from "react";
-import { useParams } from "next/navigation";
+import { useContext, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { SessionContext } from "@/lib/session-context";
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, query, doc, getDoc, addDoc, orderBy } from "firebase/firestore";
-import ChatMessage from "@/components/ChatMessage";
-import RoomHeader from "./components/RoomHeader";
+import { collection, getDocs, query, where, orderBy } from "firebase/firestore";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import ChatTile from "@/components/ChatTile";
 
-interface MessageData {
-  messageId: string;
-  senderId: string;
-  text: string;
-  timestamp: Date;
-  aiInsightRequest?: boolean;
-  aiInsightResponse?: string;
+interface ChatData {
+  chatId: string;
+  participants: string[];
+  createdAt: Date;
+  updatedAt: Date;
+  chatName?: string;
+  lastMessage?: string;
 }
 
-export default function ChatRoomPage() {
-  const params = useParams();
-  const roomId = params.roomId as string;
-  const { user, loading } = useContext(SessionContext);
-  const [messages, setMessages] = useState<MessageData[]>([]);
-  const [roomName, setRoomName] = useState<string>("");
-  const [newMessage, setNewMessage] = useState<string>("");
-  const [aiResponse, setAiResponse] = useState<string>("");
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+interface UserData {
+  uid: string;
+  displayName: string;
+  email: string;
+  photoURL: string;
+  profilePictureUrl?: string;
+}
 
-  // Scroll to bottom of messages
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+export default function ChatPage() {
+  const { user, loading } = useContext(SessionContext);
+  const router = useRouter();
+  const [chats, setChats] = useState<ChatData[]>([]);
+  const [users, setUsers] = useState<Record<string, UserData>>({});
 
   useEffect(() => {
-    if (!loading && user && roomId) {
-      // Fetch chat room details
-      const fetchRoomDetails = async () => {
+    if (!loading && !user) {
+      router.push("/login");
+      return;
+    }
+
+    if (user) {
+      const fetchChats = async () => {
         try {
-          const chatDocRef = doc(db, "chats", roomId);
-          const chatDoc = await getDoc(chatDocRef);
+          // Get chats where the current user is a participant
+          const chatsCollection = collection(db, "chats");
+          const chatsQuery = query(
+            chatsCollection, 
+            where("participants", "array-contains", user.uid),
+            orderBy("updatedAt", "desc")
+          );
           
-          if (chatDoc.exists()) {
+          const chatsSnapshot = await getDocs(chatsQuery);
+          const chatsList: ChatData[] = [];
+          
+          for (const chatDoc of chatsSnapshot.docs) {
             const chatData = chatDoc.data();
-            // Find the other participant
-            const otherParticipantId = chatData.participants.find(
-              (participant: string) => participant !== user.uid
-            );
             
-            if (otherParticipantId) {
-              const userDocRef = doc(db, "users", otherParticipantId);
-              const userDoc = await getDoc(userDocRef);
-              
-              if (userDoc.exists()) {
-                setRoomName(userDoc.data().displayName);
-              } else {
-                setRoomName("Chat Room");
+            // Get the last message
+            const messagesCollection = collection(db, `chats/${chatDoc.id}/messages`);
+            const messagesQuery = query(messagesCollection, orderBy("timestamp", "desc"));
+            const messagesSnapshot = await getDocs(messagesQuery);
+            
+            const lastMessage = messagesSnapshot.docs.length > 0 
+              ? messagesSnapshot.docs[0].data().text 
+              : "No messages yet";
+            
+            chatsList.push({
+              chatId: chatDoc.id,
+              participants: chatData.participants,
+              createdAt: chatData.createdAt.toDate(),
+              updatedAt: chatData.updatedAt.toDate(),
+              chatName: chatData.chatName,
+              lastMessage
+            });
+          }
+          
+          setChats(chatsList);
+          
+          // Fetch user data for all participants
+          const userIds = new Set<string>();
+          chatsList.forEach(chat => {
+            chat.participants.forEach(participantId => {
+              if (participantId !== user.uid) {
+                userIds.add(participantId);
               }
-            } else {
-              setRoomName(chatData.chatName || "Chat Room");
+            });
+          });
+          
+          const usersData: Record<string, UserData> = {};
+          for (const userId of userIds) {
+            const userCollection = collection(db, "users");
+            const userQuery = query(userCollection, where("uid", "==", userId));
+            const userSnapshot = await getDocs(userQuery);
+            
+            if (!userSnapshot.empty) {
+              const userData = userSnapshot.docs[0].data();
+              usersData[userId] = {
+                uid: userData.uid,
+                displayName: userData.displayName,
+                email: userData.email,
+                photoURL: userData.photoURL,
+                profilePictureUrl: userData.profilePictureUrl
+              };
             }
           }
+          
+          setUsers(usersData);
         } catch (error) {
-          console.error("Error fetching room details:", error);
-          setRoomName("Chat Room");
+          console.error("Error fetching chats:", error);
         }
       };
       
-      fetchRoomDetails();
-
-      // Listen for messages in this chat room
-      const messagesCollection = collection(db, `chats/${roomId}/messages`);
-      const messagesQuery = query(messagesCollection, orderBy("timestamp", "asc"));
-      
-      const unsubscribeMessages = onSnapshot(messagesQuery, (snapshot) => {
-        const updatedMessages: MessageData[] = snapshot.docs.map((doc) => {
-          const data = doc.data();
-          return {
-            messageId: doc.id,
-            senderId: data.senderId,
-            text: data.text,
-            timestamp: data.timestamp?.toDate() || new Date(),
-            aiInsightRequest: data.aiInsightRequest,
-            aiInsightResponse: data.aiInsightResponse
-          };
-        });
-
-        setMessages(updatedMessages);
-        setTimeout(scrollToBottom, 100);
-      });
-
-      return () => unsubscribeMessages();
+      fetchChats();
     }
-  }, [user, loading, roomId]);
-
-  const handleSendMessage = async () => {
-    if (!newMessage.trim() || !user || !roomId) return;
-    
-    try {
-      const messagesCollection = collection(db, `chats/${roomId}/messages`);
-      await addDoc(messagesCollection, {
-        senderId: user.uid,
-        text: newMessage,
-        timestamp: new Date(),
-        aiInsightRequest: false,
-        aiInsightResponse: ""
-      });
-      
-      setNewMessage("");
-    } catch (error) {
-      console.error("Error sending message:", error);
-    }
-  };
-
-  const handleAskAi = async () => {
-    if (!user || !roomId) return;
-    
-    try {
-      // Add a placeholder message for the AI request
-      const messagesCollection = collection(db, `chats/${roomId}/messages`);
-      const aiMessage = await addDoc(messagesCollection, {
-        senderId: "AI",
-        text: "Thinking...",
-        timestamp: new Date(),
-        aiInsightRequest: true,
-        aiInsightResponse: ""
-      });
-      
-      // Log the AI request globally
-      const aiRequestData = {
-        userId: user.uid,
-        query: "Analyze recent conversation",
-        timestamp: new Date(),
-        response: "This is an AI insight response",
-        relatedChatIds: [roomId]
-      };
-      
-      const aiGlobalRequestsCollection = collection(db, "aiGlobalRequests");
-      await addDoc(aiGlobalRequestsCollection, aiRequestData);
-      
-      // Update the AI message with the response
-      // In a real application, you would wait for the actual AI response
-      setTimeout(async () => {
-        await addDoc(messagesCollection, {
-          senderId: "AI",
-          text: "Based on your conversation, I've noticed you're discussing [topic]. Here's some additional information that might be helpful...",
-          timestamp: new Date(),
-          aiInsightRequest: false,
-          aiInsightResponse: "AI insight response"
-        });
-      }, 1000);
-      
-      setAiResponse(aiRequestData.response);
-    } catch (error) {
-      console.error("Error asking AI:", error);
-    }
-  };
+  }, [user, loading, router]);
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
   }
 
   if (!user) {
-    return <div className="flex items-center justify-center h-screen">Please log in to access chat.</div>;
+    return null; // Will redirect to login
   }
 
+  const getChatPartnerInfo = (chat: ChatData) => {
+    const partnerId = chat.participants.find(id => id !== user.uid);
+    if (!partnerId) return null;
+    
+    return users[partnerId] || null;
+  };
+
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
-      <RoomHeader roomName={roomName} />
+    <div className="container mx-auto py-8 px-4">
+      <h1 className="text-2xl font-bold mb-6">Your Conversations</h1>
       
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((message) => (
-          <ChatMessage
-            key={message.messageId}
-            message={message.text}
-            isUser={message.senderId === user?.uid}
-          />
-        ))}
-        <div ref={messagesEndRef} />
-      </div>
-      
-      <div className="border-t p-4 bg-white">
-        <div className="flex space-x-2">
-          <input
-            type="text"
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Type a message..."
-            className="flex-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            onKeyPress={(e) => {
-              if (e.key === 'Enter') {
-                handleSendMessage();
-              }
-            }}
-          />
-          <button
-            onClick={handleSendMessage}
-            className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
-          >
-            Send
-          </button>
-          <button
-            onClick={handleAskAi}
-            className="bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600"
-          >
-            Ask AI
-          </button>
+      {chats.length === 0 ? (
+        <Card className="text-center p-8">
+          <CardContent>
+            <p className="text-gray-500 mb-4">You don't have any active conversations yet.</p>
+            <button 
+              className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
+              onClick={() => router.push('/')}
+            >
+              Start a New Conversation
+            </button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {chats.map(chat => {
+            const partner = getChatPartnerInfo(chat);
+            return (
+              <ChatTile 
+                key={chat.chatId}
+                user={partner || {
+                  uid: "unknown",
+                  displayName: chat.chatName || "Unknown",
+                }}
+                lastMessage={chat.lastMessage || "No messages"}
+                chatId={chat.chatId}
+              />
+            );
+          })}
         </div>
-      </div>
+      )}
     </div>
   );
 }
