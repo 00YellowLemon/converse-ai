@@ -6,7 +6,7 @@ import { SessionContext } from "@/lib/session-context";
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, query, doc, getDoc, addDoc, orderBy } from "firebase/firestore";
 import ChatMessage from "@/components/ChatMessage";
-import RoomHeader from "./components/RoomHeader";
+import RoomHeader from "@/components/RoomHeader";
 
 interface MessageData {
   messageId: string;
