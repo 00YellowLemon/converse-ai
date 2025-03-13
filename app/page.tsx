@@ -273,7 +273,10 @@ export default function Home() {
           <ChatTile key={chat.chatId} user={chat.user} lastMessage={chat.lastMessage} />
         ))}
       </div>
-      <button className="fixed bottom-4 right-4 bg-blue-500 text-white py-2 px-4 rounded-full shadow-lg">
+      <button 
+        className="fixed bottom-4 right-4 bg-blue-500 text-white py-2 px-4 rounded-full shadow-lg"
+        onClick={() => router.push('/chat')}
+      >
         Chat to AI
       </button>
     </div>

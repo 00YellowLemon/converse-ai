@@ -1,7 +1,7 @@
 import { useContext, useEffect, useState } from "react";
 import { SessionContext } from "@/lib/session-context";
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, query, doc, getDoc } from "firebase/firestore";
+import { collection, onSnapshot, query, doc, getDoc, addDoc } from "firebase/firestore";
 import ChatMessage from "@/components/ChatMessage";
 import RoomHeader from "@/app/chat/[roomId]/components/RoomHeader";
 
@@ -27,6 +27,7 @@ export default function ChatPage() {
   const [chats, setChats] = useState<ChatData[]>([]);
   const [messages, setMessages] = useState<MessageData[]>([]);
   const [chatUser, setChatUser] = useState<string>("");
+  const [aiResponse, setAiResponse] = useState<string>("");
 
   useEffect(() => {
     if (!loading && user) {
@@ -96,6 +97,24 @@ export default function ChatPage() {
     }
   }, [user, loading]);
 
+  const handleAskAi = async () => {
+    if (user) {
+      const aiRequest = {
+        requestId: "exampleRequestId",
+        userId: user.uid,
+        query: "What is the weather like today?",
+        timestamp: new Date(),
+        response: "The weather is sunny.",
+        relatedChatIds: ["exampleChatId"]
+      };
+
+      const aiGlobalRequestsCollection = collection(db, "aiGlobalRequests");
+      await addDoc(aiGlobalRequestsCollection, aiRequest);
+
+      setAiResponse(aiRequest.response);
+    }
+  };
+
   return (
     <div className="p-8">
       <RoomHeader chatUser={chatUser} />
@@ -107,8 +126,13 @@ export default function ChatPage() {
         />
       ))}
       <div className="flex justify-end mt-4">
-        <button className="bg-blue-500 text-white py-2 px-4 rounded">Ask AI</button>
+        <button className="bg-blue-500 text-white py-2 px-4 rounded" onClick={handleAskAi}>Ask AI</button>
       </div>
+      {aiResponse && (
+        <div className="mt-4 p-4 bg-gray-200 rounded">
+          <p>{aiResponse}</p>
+        </div>
+      )}
     </div>
   );
 }
