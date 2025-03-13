@@ -58,6 +58,7 @@ export default function Home() {
   const [messages, setMessages] = useState<MessageData[]>([]);
   const [aiGlobalRequests, setAiGlobalRequests] = useState<AiGlobalRequestData[]>([]);
   const [recentChats, setRecentChats] = useState<RecentChatData[]>([]); // State for recent chats
+  const [isChatStarted, setIsChatStarted] = useState<boolean>(false); // State to track if a chat has started
 
   useEffect(() => { 
     if (!loading && !user) {
@@ -120,15 +121,8 @@ export default function Home() {
   useEffect(() => {
     const chatsCollection = collection(db, "chats");
     const setChatData = async () => {
-      await addDoc(chatsCollection, {
-        chatId: "exampleChatId",
-        participants: [user.uid],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        chatName: "Example Chat"
-      });
+      setIsChatStarted(true); // Set isChatStarted to true when a chat is initiated
     };
-    setChatData();
 
     const unsubscribe = onSnapshot(query(chatsCollection), (snapshot) => {
       const updatedChats: ChatData[] = snapshot.docs.map((doc) => {
@@ -147,6 +141,20 @@ export default function Home() {
 
     return () => unsubscribe();
   }, [user,firebaseClient]);
+
+  const handleSendMessage = async (chatId: string, message: MessageData) => {
+    if (isChatStarted) {
+      const messagesCollection = collection(db, `chats/${chatId}/messages`);
+      await addDoc(messagesCollection, {
+        messageId: message.messageId,
+        senderId: message.senderId,
+        text: message.text,
+        timestamp: new Date(),
+        aiInsightRequest: message.aiInsightRequest,
+        aiInsightResponse: message.aiInsightResponse
+      });
+    }
+  };
 
   useEffect(() => {
     const messagesCollection = collection(db, "chats/exampleChatId/messages");
