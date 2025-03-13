@@ -1,6 +1,6 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithEmailAndPassword } from 'firebase/auth';
-import { getFirestore, doc, setDoc, collection, addDoc } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, collection, addDoc, getDocs } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDAnH4Hm54GJ6h5gQMtExwJolE8FbHNBBg",
@@ -75,6 +75,13 @@ export const addAiGlobalRequestToFirestore = async (request: any) => {
     response: request.response,
     relatedChatIds: request.relatedChatIds
   });
+};
+
+export const fetchRecentChats = async () => {
+  const recentChatsCollection = collection(db, 'recentChats');
+  const snapshot = await getDocs(recentChatsCollection);
+  const recentChats = snapshot.docs.map(doc => doc.data());
+  return recentChats;
 };
 
 export { firebaseApp };
