@@ -5,13 +5,12 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { SessionContext } from "@/lib/session-context";
 import { db } from '@/lib/firebase';
-import { collection, doc, addDoc, onSnapshot, query, setDoc } from "firebase/firestore";
+import { collection, doc, addDoc, onSnapshot, query, setDoc, orderBy, limit } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, MessageSquare, Plus, UserCircle, Users } from "lucide-react";
 import ChatTile from "@/components/ChatTile";
-import Sidebar from "@/components/Sidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // Type definitions
@@ -56,6 +55,7 @@ interface RecentChatData {
   chatId: string;
   user: UserData;
   lastMessage: string;
+  timestamp: Date;
 }
 
 export default function Home() {
@@ -195,19 +195,27 @@ export default function Home() {
     return () => unsubscribe();
   }, [user]);
 
-  // Listen for recent chats
+  // Listen for recent chats - Updated to limit to 7 chats ordered by timestamp
   useEffect(() => {
     if (!user) return;
 
     const recentChatsCollection = collection(db, "recentChats");
     
-    const unsubscribe = onSnapshot(query(recentChatsCollection), (snapshot) => {
+    // Create query with orderBy and limit to get most recent 7 chats
+    const recentChatsQuery = query(
+      recentChatsCollection, 
+      orderBy("timestamp", "desc"), 
+      limit(7)
+    );
+    
+    const unsubscribe = onSnapshot(recentChatsQuery, (snapshot) => {
       const updatedRecentChats: RecentChatData[] = snapshot.docs.map((doc) => {
         const data = doc.data();
         return {
           chatId: doc.id,
           user: data.user,
-          lastMessage: data.lastMessage
+          lastMessage: data.lastMessage,
+          timestamp: data.timestamp?.toDate() || new Date()
         } as RecentChatData;
       });
 
@@ -290,7 +298,6 @@ export default function Home() {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      <Sidebar />
       
       <main className="flex-1 overflow-auto p-6">
         <div className="mx-auto max-w-6xl">
@@ -330,7 +337,7 @@ export default function Home() {
             </div>
           </header>
           
-          {/* Recent chats section */}
+          {/* Recent chats section - Updated to show list view */}
           <section className="mb-8">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-bold text-gray-900">Recent Chats</h2>
@@ -345,15 +352,46 @@ export default function Home() {
             </div>
             
             {recentChats.length > 0 ? (
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {recentChats.map((chat) => (
-                  <ChatTile 
-                    key={chat.chatId} 
-                    user={chat.user} 
-                    lastMessage={chat.lastMessage} 
-                    onClick={() => router.push(`/chat/${chat.chatId}`)}
-                  />
-                ))}
+              <div className="bg-white rounded-lg shadow overflow-hidden">
+                <ul className="divide-y divide-gray-200">
+                  {recentChats.map((chat) => (
+                    <li 
+                      key={chat.chatId}
+                      className="hover:bg-gray-50 cursor-pointer transition-colors duration-150"
+                      onClick={() => router.push(`/chat/${chat.chatId}`)}
+                    >
+                      <div className="flex items-center px-4 py-3">
+                        {chat.user.profilePictureUrl ? (
+                          <div className="relative h-12 w-12 overflow-hidden rounded-full flex-shrink-0">
+                            <Image 
+                              src={chat.user.profilePictureUrl} 
+                              alt={chat.user.displayName || "User"}
+                              fill
+                              className="object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                            <UserCircle className="h-6 w-6 text-blue-600" />
+                          </div>
+                        )}
+                        <div className="ml-4 flex-1 truncate">
+                          <div className="flex items-center justify-between">
+                            <h3 className="text-sm font-medium text-gray-900 truncate">
+                              {chat.user.displayName || chat.user.email}
+                            </h3>
+                            <span className="text-xs text-gray-500">
+                              {chat.timestamp ? new Date(chat.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-500 truncate mt-1">
+                            {chat.lastMessage}
+                          </p>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
               </div>
             ) : (
               <Card className="bg-white/50 border-dashed border-2 text-center p-8">
@@ -516,5 +554,4 @@ export default function Home() {
         </div>
       </main>
     </div>
-  );
-}
+  );};
