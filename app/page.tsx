@@ -42,15 +42,6 @@ interface MessageData {
   aiInsightResponse?: string;
 }
 
-interface AiGlobalRequestData {
-  requestId: string;
-  userId: string;
-  query: string;
-  timestamp: Date;
-  response?: string;
-  relatedChatIds?: string[];
-}
-
 interface RecentChatData {
   chatId: string;
   user: UserData;
@@ -64,7 +55,6 @@ export default function Home() {
   const [users, setUsers] = useState<UserData[]>([]);
   const [chats, setChats] = useState<ChatData[]>([]);
   const [messages, setMessages] = useState<MessageData[]>([]);
-  const [aiGlobalRequests, setAiGlobalRequests] = useState<AiGlobalRequestData[]>([]);
   const [recentChats, setRecentChats] = useState<RecentChatData[]>([]);
   const [isChatStarted, setIsChatStarted] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -165,31 +155,6 @@ export default function Home() {
       });
 
       setMessages(updatedMessages);
-    });
-
-    return () => unsubscribe();
-  }, [user]);
-
-  // Listen for AI global requests
-  useEffect(() => {
-    if (!user) return;
-
-    const aiGlobalRequestsCollection = collection(db, "aiGlobalRequests");
-    
-    const unsubscribe = onSnapshot(query(aiGlobalRequestsCollection), (snapshot) => {
-      const updatedAiGlobalRequests: AiGlobalRequestData[] = snapshot.docs.map((doc) => {
-        const data = doc.data();
-        return {
-          requestId: doc.id,
-          userId: data.userId,
-          query: data.query,
-          timestamp: data.timestamp?.toDate(),
-          response: data.response,
-          relatedChatIds: data.relatedChatIds
-        } as AiGlobalRequestData;
-      });
-
-      setAiGlobalRequests(updatedAiGlobalRequests);
     });
 
     return () => unsubscribe();
@@ -408,16 +373,12 @@ export default function Home() {
             )}
           </section>
           
-          {/* Tabs for All Users and Recent AI Requests */}
+          {/* Tabs for All Users */}
           <Tabs defaultValue="users" className="mt-8">
             <TabsList className="grid w-full grid-cols-2 mb-6">
               <TabsTrigger value="users" className="flex items-center gap-2">
                 <Users className="h-4 w-4" />
                 Available Users
-              </TabsTrigger>
-              <TabsTrigger value="ai-requests" className="flex items-center gap-2">
-                <MessageSquare className="h-4 w-4" />
-                AI Requests
               </TabsTrigger>
             </TabsList>
             
@@ -487,66 +448,6 @@ export default function Home() {
                     <p className="text-lg font-medium text-gray-700">No users match your search</p>
                     <p className="text-gray-500 mt-1">Try adjusting your search query</p>
                   </div>
-                )}
-              </div>
-            </TabsContent>
-            
-            {/* AI Requests Tab */}
-            <TabsContent value="ai-requests">
-              <div className="space-y-4">
-                {aiGlobalRequests.length > 0 ? (
-                  aiGlobalRequests.map((request) => (
-                    <Card key={request.requestId}>
-                      <CardHeader className="pb-2">
-                        <div className="flex justify-between items-center">
-                          <CardTitle className="text-lg font-medium">AI Query</CardTitle>
-                          <span className="text-xs text-gray-500">
-                            {request.timestamp?.toLocaleDateString()} at {request.timestamp?.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                          </span>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="mb-3 bg-blue-50 p-3 rounded-md">
-                          <p className="font-medium text-blue-700">{request.query}</p>
-                        </div>
-                        {request.response && (
-                          <div className="bg-gray-50 p-3 rounded-md">
-                            <p className="text-gray-700">{request.response}</p>
-                          </div>
-                        )}
-                        {request.relatedChatIds && request.relatedChatIds.length > 0 && (
-                          <div className="mt-4">
-                            <p className="text-xs text-gray-500 mb-2">Related chats:</p>
-                            <div className="flex flex-wrap gap-2">
-                              {request.relatedChatIds.map((chatId) => (
-                                <Button 
-                                  key={chatId}
-                                  variant="outline"
-                                  size="sm"
-                                  className="text-xs"
-                                  onClick={() => router.push(`/chat/${chatId}`)}
-                                >
-                                  View Chat
-                                </Button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  ))
-                ) : (
-                  <Card className="text-center py-12">
-                    <MessageSquare className="h-12 w-12 mx-auto text-gray-300 mb-3" />
-                    <p className="text-lg font-medium text-gray-700">No AI requests yet</p>
-                    <p className="text-gray-500 mt-1">Ask AI a question to get started</p>
-                    <Button
-                      className="mt-4"
-                      onClick={() => router.push('/chat')}
-                    >
-                      Chat with AI
-                    </Button>
-                  </Card>
                 )}
               </div>
             </TabsContent>
