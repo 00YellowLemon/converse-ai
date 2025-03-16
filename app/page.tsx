@@ -255,10 +255,13 @@ export default function Home() {
     startNewChat();
   };
 
-  // Filter users based on search query
+  // Filter users based on search query and exclude current user
   const filteredUsers = users.filter(userData => 
-    userData.displayName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    userData.email?.toLowerCase().includes(searchQuery.toLowerCase())
+    // Only include users who are not the current user and match search query
+    userData.uid !== user?.uid && (
+      userData.displayName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      userData.email?.toLowerCase().includes(searchQuery.toLowerCase())
+    )
   );
 
   // Loading screen
