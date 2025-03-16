@@ -506,3 +506,7 @@ export default function Home() {
             </TabsContent>
           </Tabs>
         </div>
+      </main>
+    </div>
+  );
+}
