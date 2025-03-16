@@ -232,7 +232,7 @@ export default function Home() {
   };
 
   // Start a new chat
-  const startNewChat = async (userId?: string) => {
+  const startNewChat = async (userId?: string): Promise<void> => {
     if (!user) return;
     
     const chatsCollection = collection(db, "chats");
@@ -250,6 +250,11 @@ export default function Home() {
     router.push(`/chat/${newChatRef.id}`);
   };
 
+  // Start new chat wrapper to be used as a callback
+  const handleStartNewChat = () => {
+    startNewChat();
+  };
+
   // Filter users based on search query
   const filteredUsers = users.filter(userData => 
     userData.displayName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -260,7 +265,7 @@ export default function Home() {
   if (loading || isLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-gray-50">
-        <div className="flex flex-col items-center space-y-4">
+       <div className="flex flex-col items-center space-y-4">
           <div className="h-16 w-16 animate-spin rounded-full border-b-2 border-t-2 border-blue-500"></div>
           <p className="text-xl font-medium text-gray-700">Loading...</p>
         </div>
@@ -327,7 +332,7 @@ export default function Home() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-bold text-gray-900">Recent Chats</h2>
               <Button 
-                onClick={startNewChat}
+                onClick={handleStartNewChat}
                 variant="outline"
                 className="flex items-center gap-2"
               >
@@ -353,7 +358,7 @@ export default function Home() {
                   <MessageSquare className="h-12 w-12 text-gray-400 mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No recent chats</h3>
                   <p className="text-gray-500 mb-4">Start a conversation with friends or colleagues</p>
-                  <Button onClick={startNewChat} className="gap-2">
+                  <Button onClick={handleStartNewChat} className="gap-2">
                     <Plus className="h-4 w-4" />
                     Start a chat
                   </Button>

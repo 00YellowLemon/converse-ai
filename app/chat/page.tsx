@@ -155,6 +155,9 @@ export default function ChatPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {chats.map(chat => {
             const partner = getChatPartnerInfo(chat);
+            const handleChatTileClick = () => {
+              router.push(`/chat/${chat.chatId}`);
+            }
             return (
               <ChatTile 
                 key={chat.chatId}
@@ -164,6 +167,7 @@ export default function ChatPage() {
                 }}
                 lastMessage={chat.lastMessage || "No messages"}
                 chatId={chat.chatId}
+                onClick={handleChatTileClick}
               />
             );
           })}
