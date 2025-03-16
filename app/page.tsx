@@ -4,7 +4,7 @@ import { useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { SessionContext } from "@/lib/session-context";
-import { db } from '@/lib/firebase';
+import { db, fetchRecentChats } from '@/lib/firebase';
 import { collection, doc, addDoc, onSnapshot, query, setDoc, orderBy, limit } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -189,6 +189,16 @@ export default function Home() {
     return () => unsubscribe();
   }, [user]);
 
+  // Fetch recent chats
+  useEffect(() => {
+    const fetchChats = async () => {
+      const chats = await fetchRecentChats();
+      setRecentChats(chats);
+    };
+
+    fetchChats();
+  }, []);
+
   // Handle sending a message
   const handleSendMessage = async (chatId: string, text: string) => {
     if (!user || !text.trim()) return;
@@ -368,6 +378,21 @@ export default function Home() {
               </div>
             </TabsContent>
           </Tabs>
+
+          {/* Recent Chats Section */}
+          <section className="mt-8">
+            <h2 className="text-2xl font-bold mb-4">Recent Chats</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {recentChats.map(chat => (
+                <ChatTile 
+                  key={chat.chatId}
+                  user={chat.user}
+                  lastMessage={chat.lastMessage}
+                  onClick={() => router.push(`/chat/${chat.chatId}`)}
+                />
+              ))}
+            </div>
+          </section>
         </div>
       </main>
     </div>
