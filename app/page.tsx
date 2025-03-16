@@ -7,9 +7,8 @@ import { SessionContext } from "@/lib/session-context";
 import { db } from '@/lib/firebase';
 import { collection, doc, addDoc, onSnapshot, query, setDoc, orderBy, limit } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, MessageSquare, Plus, UserCircle, Users } from "lucide-react";
+import { MessageSquare, Plus, UserCircle, Users } from "lucide-react";
 import ChatTile from "@/components/ChatTile";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -288,90 +287,7 @@ export default function Home() {
                 )}
               </div>
             </div>
-            
-            {/* Search bar */}
-            <div className="mt-6 flex items-center rounded-lg bg-white p-2 shadow">
-              <Search className="mx-2 h-5 w-5 text-gray-400" />
-              <Input
-                type="text"
-                placeholder="Search users..." 
-                className="flex-1 border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
           </header>
-          
-          {/* Recent chats section - Updated to show list view */}
-          <section className="mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold text-gray-900">Recent Chats</h2>
-              <Button 
-                onClick={handleStartNewChat}
-                variant="outline"
-                className="flex items-center gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                New Chat
-              </Button>
-            </div>
-            
-            {recentChats.length > 0 ? (
-              <div className="bg-white rounded-lg shadow overflow-hidden">
-                <ul className="divide-y divide-gray-200">
-                  {recentChats.map((chat) => (
-                    <li 
-                      key={chat.chatId}
-                      className="hover:bg-gray-50 cursor-pointer transition-colors duration-150"
-                      onClick={() => router.push(`/chat/${chat.chatId}`)}
-                    >
-                      <div className="flex items-center px-4 py-3">
-                        {chat.user.profilePictureUrl ? (
-                          <div className="relative h-12 w-12 overflow-hidden rounded-full flex-shrink-0">
-                            <Image 
-                              src={chat.user.profilePictureUrl} 
-                              alt={chat.user.displayName || "User"}
-                              fill
-                              className="object-cover"
-                            />
-                          </div>
-                        ) : (
-                          <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                            <UserCircle className="h-6 w-6 text-blue-600" />
-                          </div>
-                        )}
-                        <div className="ml-4 flex-1 truncate">
-                          <div className="flex items-center justify-between">
-                            <h3 className="text-sm font-medium text-gray-900 truncate">
-                              {chat.user.displayName || chat.user.email}
-                            </h3>
-                            <span className="text-xs text-gray-500">
-                              {chat.timestamp ? new Date(chat.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
-                            </span>
-                          </div>
-                          <p className="text-sm text-gray-500 truncate mt-1">
-                            {chat.lastMessage}
-                          </p>
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : (
-              <Card className="bg-white/50 border-dashed border-2 text-center p-8">
-                <CardContent className="flex flex-col items-center pt-6">
-                  <MessageSquare className="h-12 w-12 text-gray-400 mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No recent chats</h3>
-                  <p className="text-gray-500 mb-4">Start a conversation with friends or colleagues</p>
-                  <Button onClick={handleStartNewChat} className="gap-2">
-                    <Plus className="h-4 w-4" />
-                    Start a chat
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-          </section>
           
           {/* Tabs for All Users */}
           <Tabs defaultValue="users" className="mt-8">
