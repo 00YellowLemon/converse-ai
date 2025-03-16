@@ -4,7 +4,7 @@ import { useContext, useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import { SessionContext } from "@/lib/session-context";
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, query, doc, getDoc, addDoc, orderBy } from "firebase/firestore";
+import { collection, onSnapshot, query, doc, getDoc, addDoc, orderBy, serverTimestamp } from "firebase/firestore";
 import ChatMessage from "@/components/ChatMessage";
 import RoomHeader from "@/components/RoomHeader";
 
@@ -19,12 +19,15 @@ interface MessageData {
 
 export default function ChatRoomPage() {
   const params = useParams();
-  const roomId = params.roomId as string;
+  // Fix: ensure consistent parameter naming - convert to string and lowercase for consistency
+  const roomId = (params.roomId || params.roomid) as string;
+  
   const { user, loading } = useContext(SessionContext);
   const [messages, setMessages] = useState<MessageData[]>([]);
   const [roomName, setRoomName] = useState<string>("");
   const [newMessage, setNewMessage] = useState<string>("");
   const [aiResponse, setAiResponse] = useState<string>("");
+  const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Scroll to bottom of messages
@@ -59,9 +62,13 @@ export default function ChatRoomPage() {
             } else {
               setRoomName(chatData.chatName || "Chat Room");
             }
+          } else {
+            setError("Chat room not found");
+            setRoomName("Chat Room");
           }
         } catch (error) {
           console.error("Error fetching room details:", error);
+          setError("Failed to load chat details");
           setRoomName("Chat Room");
         }
       };
@@ -87,6 +94,9 @@ export default function ChatRoomPage() {
 
         setMessages(updatedMessages);
         setTimeout(scrollToBottom, 100);
+      }, (error) => {
+        console.error("Error listening to messages:", error);
+        setError("Failed to load messages");
       });
 
       return () => unsubscribeMessages();
@@ -101,7 +111,7 @@ export default function ChatRoomPage() {
       await addDoc(messagesCollection, {
         senderId: user.uid,
         text: newMessage,
-        timestamp: new Date(),
+        timestamp: serverTimestamp(), // Use serverTimestamp for more accurate timing
         aiInsightRequest: false,
         aiInsightResponse: ""
       });
@@ -109,6 +119,7 @@ export default function ChatRoomPage() {
       setNewMessage("");
     } catch (error) {
       console.error("Error sending message:", error);
+      setError("Failed to send message");
     }
   };
 
@@ -118,10 +129,10 @@ export default function ChatRoomPage() {
     try {
       // Add a placeholder message for the AI request
       const messagesCollection = collection(db, `chats/${roomId}/messages`);
-      const aiMessage = await addDoc(messagesCollection, {
+      await addDoc(messagesCollection, {
         senderId: "AI",
         text: "Thinking...",
-        timestamp: new Date(),
+        timestamp: serverTimestamp(),
         aiInsightRequest: true,
         aiInsightResponse: ""
       });
@@ -144,7 +155,7 @@ export default function ChatRoomPage() {
         await addDoc(messagesCollection, {
           senderId: "AI",
           text: "Based on your conversation, I've noticed you're discussing [topic]. Here's some additional information that might be helpful...",
-          timestamp: new Date(),
+          timestamp: serverTimestamp(),
           aiInsightRequest: false,
           aiInsightResponse: "AI insight response"
         });
@@ -153,6 +164,7 @@ export default function ChatRoomPage() {
       setAiResponse(aiRequestData.response);
     } catch (error) {
       console.error("Error asking AI:", error);
+      setError("Failed to process AI request");
     }
   };
 
@@ -168,14 +180,26 @@ export default function ChatRoomPage() {
     <div className="flex flex-col h-screen bg-gray-50">
       <RoomHeader roomName={roomName} />
       
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mx-4 mt-2">
+          {error}
+        </div>
+      )}
+      
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((message) => (
-          <ChatMessage
-            key={message.messageId}
-            message={message.text}
-            isUser={message.senderId === user?.uid}
-          />
-        ))}
+        {messages.length === 0 ? (
+          <div className="text-center text-gray-500 my-8">
+            No messages yet. Start the conversation!
+          </div>
+        ) : (
+          messages.map((message) => (
+            <ChatMessage
+              key={message.messageId}
+              message={message.text}
+              isUser={message.senderId === user?.uid}
+            />
+          ))
+        )}
         <div ref={messagesEndRef} />
       </div>
       

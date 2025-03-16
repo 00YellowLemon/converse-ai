@@ -15,7 +15,7 @@ export default function LoginPage() {
   const auth = getAuth(firebaseApp);
   const db = getFirestore(firebaseApp);
 
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignIn = async (): Promise<void> => {
     setError(null);
     try {
       setLoading(true);
@@ -45,7 +45,7 @@ export default function LoginPage() {
     }
   };
 
-  const handleEmailPasswordSignIn = async () => {
+  const handleEmailPasswordSignIn = async (): Promise<void> => {
     setError(null);
     try {
       setLoading(true);
@@ -71,40 +71,55 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center h-screen bg-gray-100">
-      <h1 className="text-3xl font-bold mb-8">Login</h1>
-      <div className="flex flex-col items-center w-full max-w-md p-8 bg-white rounded-lg shadow-md">
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="mb-4 p-2 border border-gray-300 rounded w-full"
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="mb-4 p-2 border border-gray-300 rounded w-full"
-        />
-        <button
-          onClick={handleEmailPasswordSignIn}
-          disabled={loading}
-          className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded w-full mb-4 disabled:opacity-50"
-        >
-          Login with Email
-        </button>
-        <button
-          onClick={handleGoogleSignIn}
-          disabled={loading}
-          className="bg-white hover:bg-gray-100 text-gray-800 font-semibold py-2 px-4 border border-gray-400 rounded shadow flex items-center disabled:opacity-50"
-        >
-          <img src="/google.svg" alt="Google Logo" className="w-6 h-6 mr-2" />
-          Continue with Google
-        </button>
-        {loading && <p className="mt-4">Loading...</p>}
-        {error && <p className="mt-4 text-red-500">{error}</p>}
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
+        <h1 className="text-2xl font-semibold text-gray-900 mb-6 text-center">Welcome Back</h1>
+        
+        <div className="space-y-4">
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
+            className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50 text-gray-900 placeholder-gray-400"
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
+            className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50 text-gray-900 placeholder-gray-400"
+          />
+          
+          <button
+            onClick={handleEmailPasswordSignIn}
+            disabled={loading}
+            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 rounded-lg transition-colors disabled:bg-indigo-300 disabled:cursor-not-allowed shadow-md"
+          >
+            Sign In
+          </button>
+          
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-200"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-gray-500">Or continue with</span>
+            </div>
+          </div>
+
+          <button
+            onClick={handleGoogleSignIn}
+            disabled={loading}
+            className="w-full bg-white hover:bg-gray-50 text-gray-700 font-medium py-3 rounded-lg border border-gray-200 transition-colors disabled:opacity-50 flex items-center justify-center shadow-sm"
+          >
+            <img src="/google.svg" alt="Google" className="w-5 h-5 mr-2" />
+            Google
+          </button>
+        </div>
+
+        {loading && <p className="mt-4 text-center text-gray-600">Signing in...</p>}
+        {error && <p className="mt-4 text-center text-red-600 text-sm">{error}</p>}
       </div>
     </div>
   );

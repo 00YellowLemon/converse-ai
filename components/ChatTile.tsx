@@ -12,10 +12,11 @@ interface User {
 interface ChatTileProps {
   user: User;
   lastMessage: string;
+  onClick: () => void;
   chatId?: string;
 }
 
-const ChatTile: React.FC<ChatTileProps> = ({ user, lastMessage, chatId }) => {
+const ChatTile: React.FC<ChatTileProps> = ({ user, lastMessage, chatId, onClick }) => {
   const router = useRouter();
 
   const handleChatClick = () => {
@@ -27,7 +28,7 @@ const ChatTile: React.FC<ChatTileProps> = ({ user, lastMessage, chatId }) => {
   return (
     <div 
       className="bg-white shadow-md rounded-lg p-4 cursor-pointer hover:shadow-lg transition-shadow"
-      onClick={handleChatClick}
+      onClick={onClick}
     >
       <div className="flex items-center mb-2">
         {user.profilePictureUrl ? (
