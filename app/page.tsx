@@ -4,7 +4,7 @@ import { useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { SessionContext } from "@/lib/session-context";
-import { db, fetchRecentChats } from '@/lib/firebase';
+import { db, fetchRecentChats, chatGoogleGenerativeAI } from '@/lib/firebase';
 import { collection, doc, addDoc, onSnapshot, query, setDoc, orderBy, limit } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

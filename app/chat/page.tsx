@@ -3,7 +3,7 @@
 import { useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SessionContext } from "@/lib/session-context";
-import { db } from '@/lib/firebase';
+import { db, chatGoogleGenerativeAI } from '@/lib/firebase';
 import { collection, getDocs, query, where, orderBy } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import ChatTile from "@/components/ChatTile";
@@ -133,6 +133,24 @@ export default function ChatPage() {
     if (!partnerId) return null;
     
     return users[partnerId] || null;
+  };
+
+  const analyzeConversation = async (chatId: string) => {
+    try {
+      const messagesCollection = collection(db, `chats/${chatId}/messages`);
+      const messagesQuery = query(messagesCollection, orderBy("timestamp", "asc"));
+      const messagesSnapshot = await getDocs(messagesQuery);
+      
+      const conversation = messagesSnapshot.docs.map(doc => doc.data().text).join("\n");
+      const response = await chatGoogleGenerativeAI.call({
+        chat_history: conversation,
+        user_query: "Analyze this conversation and provide insights."
+      });
+      
+      console.log("AI Response:", response.text);
+    } catch (error) {
+      console.error("Error analyzing conversation:", error);
+    }
   };
 
   return (
