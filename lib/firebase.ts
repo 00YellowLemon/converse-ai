@@ -1,5 +1,5 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithEmailAndPassword } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
 import { getFirestore, doc, setDoc, collection, addDoc, getDocs, query, orderBy } from 'firebase/firestore';
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 
@@ -86,6 +86,37 @@ export const fetchRecentChats = async () => {
   const snapshot = await getDocs(recentChatsQuery);
   const recentChats = snapshot.docs.map(doc => doc.data());
   return recentChats;
+};
+
+export const signUpWithEmailAndPassword = async (email: string, password: string, username: string) => {
+  const result = await createUserWithEmailAndPassword(auth, email, password);
+  const user = result.user;
+  const userDocRef = doc(db, 'users', user.uid);
+  await setDoc(userDocRef, {
+    uid: user.uid,
+    displayName: username,
+    email: user.email,
+    photoURL: user.photoURL,
+    createdAt: new Date(),
+    lastActive: new Date(),
+    profilePictureUrl: user.photoURL
+  }, { merge: true });
+};
+
+export const signUpWithGoogle = async (username: string) => {
+  const provider = new GoogleAuthProvider();
+  const result = await signInWithPopup(auth, provider);
+  const user = result.user;
+  const userDocRef = doc(db, 'users', user.uid);
+  await setDoc(userDocRef, {
+    uid: user.uid,
+    displayName: username || user.displayName,
+    email: user.email,
+    photoURL: user.photoURL,
+    createdAt: new Date(),
+    lastActive: new Date(),
+    profilePictureUrl: user.photoURL
+  }, { merge: true });
 };
 
 const chatGoogleGenerativeAI = new ChatGoogleGenerativeAI({ modelName: "gemini-pro" });

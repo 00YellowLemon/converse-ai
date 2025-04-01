@@ -2,20 +2,21 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword } from "firebase/auth";
+import { getAuth, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { firebaseApp } from "@/lib/firebase";
 import { doc, setDoc, getFirestore } from "firebase/firestore";
 
-export default function LoginPage() {
+export default function SignUpPage() {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
+  const [username, setUsername] = useState<string>("");
   const router = useRouter();
   const auth = getAuth(firebaseApp);
   const db = getFirestore(firebaseApp);
 
-  const handleGoogleSignIn = async (): Promise<void> => {
+  const handleGoogleSignUp = async (): Promise<void> => {
     setError(null);
     try {
       setLoading(true);
@@ -25,7 +26,7 @@ export default function LoginPage() {
       const userDocRef = doc(db, 'users', user.uid);
       await setDoc(userDocRef, {
         uid: user.uid,
-        displayName: user.displayName,
+        displayName: username || user.displayName,
         email: user.email,
         photoURL: user.photoURL,
         createdAt: new Date(),
@@ -34,9 +35,9 @@ export default function LoginPage() {
       }, { merge: true });
       router.push("/");
     } catch (err: any) {
-      console.error("Sign-in error:", err.code, err.message);
+      console.error("Sign-up error:", err.code, err.message);
       if (err.code === "auth/popup-closed-by-user") {
-        setError("Sign-in window closed too soon. Please try again.");
+        setError("Sign-up window closed too soon. Please try again.");
       } else {
         setError(err.message);
       }
@@ -45,16 +46,16 @@ export default function LoginPage() {
     }
   };
 
-  const handleEmailPasswordSignIn = async (): Promise<void> => {
+  const handleEmailPasswordSignUp = async (): Promise<void> => {
     setError(null);
     try {
       setLoading(true);
-      const result = await signInWithEmailAndPassword(auth, email, password);
+      const result = await createUserWithEmailAndPassword(auth, email, password);
       const user = result.user;
       const userDocRef = doc(db, 'users', user.uid);
       await setDoc(userDocRef, {
         uid: user.uid,
-        displayName: user.displayName,
+        displayName: username,
         email: user.email,
         photoURL: user.photoURL,
         createdAt: new Date(),
@@ -63,7 +64,7 @@ export default function LoginPage() {
       }, { merge: true });
       router.push("/");
     } catch (err: any) {
-      console.error("Sign-in error:", err.code, err.message);
+      console.error("Sign-up error:", err.code, err.message);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -73,9 +74,16 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
-        <h1 className="text-2xl font-semibold text-gray-900 mb-6 text-center">Welcome Back</h1>
+        <h1 className="text-2xl font-semibold text-gray-900 mb-6 text-center">Create an Account</h1>
         
         <div className="space-y-4">
+          <input
+            type="text"
+            placeholder="Username"
+            value={username}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUsername(e.target.value)}
+            className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all bg-gray-50 text-gray-900 placeholder-gray-400"
+          />
           <input
             type="email"
             placeholder="Email"
@@ -92,11 +100,11 @@ export default function LoginPage() {
           />
           
           <button
-            onClick={handleEmailPasswordSignIn}
+            onClick={handleEmailPasswordSignUp}
             disabled={loading}
             className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 rounded-lg transition-colors disabled:bg-indigo-300 disabled:cursor-not-allowed shadow-md"
           >
-            Sign In
+            Sign Up
           </button>
           
           <div className="relative">
@@ -109,7 +117,7 @@ export default function LoginPage() {
           </div>
 
           <button
-            onClick={handleGoogleSignIn}
+            onClick={handleGoogleSignUp}
             disabled={loading}
             className="w-full bg-white hover:bg-gray-50 text-gray-700 font-medium py-3 rounded-lg border border-gray-200 transition-colors disabled:opacity-50 flex items-center justify-center shadow-sm"
           >
@@ -118,12 +126,8 @@ export default function LoginPage() {
           </button>
         </div>
 
-        {loading && <p className="mt-4 text-center text-gray-600">Signing in...</p>}
+        {loading && <p className="mt-4 text-center text-gray-600">Signing up...</p>}
         {error && <p className="mt-4 text-center text-red-600 text-sm">{error}</p>}
-        
-        <div className="mt-6 text-center">
-          <p className="text-gray-600">Don't have an account? <a href="/signup" className="text-indigo-600 hover:underline">Sign Up</a></p>
-        </div>
       </div>
     </div>
   );
