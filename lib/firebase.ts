@@ -59,25 +59,30 @@ export const addChatToFirestore = async (chat: any, isChatStarted: boolean) => {
 export const addMessageToFirestore = async (chatId: string, message: any) => {
   const messageRef = collection(db, `chats/${chatId}/messages`);
   await addDoc(messageRef, {
-    messageId: message.messageId,
     senderId: message.senderId,
     text: message.text,
     timestamp: new Date(),
-    aiInsightRequest: message.aiInsightRequest,
-    aiInsightResponse: message.aiInsightResponse
   });
 };
 
-export const addAiGlobalRequestToFirestore = async (request: any) => {
-  const requestRef = collection(db, 'aiGlobalRequests');
-  await addDoc(requestRef, {
-    requestId: request.requestId,
-    userId: request.userId,
-    query: request.query,
+export const addAIMessageToFirestore = async (chatId: string, userId: string, message: any) => {
+  const aiMessageRef = collection(db, `chats/${chatId}/userAIChats/${userId}/aiMessages`);
+  await addDoc(aiMessageRef, {
+    sender: message.sender, // "USER" or "AI"
+    text: message.text,
     timestamp: new Date(),
-    response: request.response,
-    relatedChatIds: request.relatedChatIds
   });
+};
+
+export const fetchUserAIMessages = async (chatId: string, userId: string) => {
+  const aiMessagesCollection = collection(db, `chats/${chatId}/userAIChats/${userId}/aiMessages`);
+  const aiMessagesQuery = query(aiMessagesCollection, orderBy("timestamp", "asc"));
+  const snapshot = await getDocs(aiMessagesQuery);
+  const aiMessages = snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }));
+  return aiMessages;
 };
 
 export const fetchRecentChats = async () => {

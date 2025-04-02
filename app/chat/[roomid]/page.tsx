@@ -7,14 +7,13 @@ import { db } from '@/lib/firebase';
 import { collection, onSnapshot, query, doc, getDoc, addDoc, orderBy, serverTimestamp } from "firebase/firestore";
 import ChatMessage from "@/components/ChatMessage";
 import RoomHeader from "@/components/RoomHeader";
+import AIChatModal from "@/components/AIChatModal";
 
 interface MessageData {
   messageId: string;
   senderId: string;
   text: string;
   timestamp: Date;
-  aiInsightRequest?: boolean;
-  aiInsightResponse?: string;
 }
 
 export default function ChatRoomPage() {
@@ -26,8 +25,8 @@ export default function ChatRoomPage() {
   const [messages, setMessages] = useState<MessageData[]>([]);
   const [roomName, setRoomName] = useState<string>("");
   const [newMessage, setNewMessage] = useState<string>("");
-  const [aiResponse, setAiResponse] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
+  const [isAIChatOpen, setIsAIChatOpen] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Scroll to bottom of messages
@@ -87,8 +86,6 @@ export default function ChatRoomPage() {
             senderId: data.senderId,
             text: data.text,
             timestamp: data.timestamp?.toDate() || new Date(),
-            aiInsightRequest: data.aiInsightRequest,
-            aiInsightResponse: data.aiInsightResponse
           };
         });
 
@@ -112,8 +109,6 @@ export default function ChatRoomPage() {
         senderId: user.uid,
         text: newMessage,
         timestamp: serverTimestamp(), // Use serverTimestamp for more accurate timing
-        aiInsightRequest: false,
-        aiInsightResponse: ""
       });
       
       setNewMessage("");
@@ -123,48 +118,9 @@ export default function ChatRoomPage() {
     }
   };
 
-  const handleAskAi = async () => {
-    if (!user || !roomId) return;
-    
-    try {
-      // Add a placeholder message for the AI request
-      const messagesCollection = collection(db, `chats/${roomId}/messages`);
-      await addDoc(messagesCollection, {
-        senderId: "AI",
-        text: "Thinking...",
-        timestamp: serverTimestamp(),
-        aiInsightRequest: true,
-        aiInsightResponse: ""
-      });
-      
-      // Log the AI request globally
-      const aiRequestData = {
-        userId: user.uid,
-        query: "Analyze recent conversation",
-        timestamp: new Date(),
-        response: "This is an AI insight response",
-        relatedChatIds: [roomId]
-      };
-      
-      const aiGlobalRequestsCollection = collection(db, "aiGlobalRequests");
-      await addDoc(aiGlobalRequestsCollection, aiRequestData);
-      
-      // Update the AI message with the response
-      // In a real application, you would wait for the actual AI response
-      setTimeout(async () => {
-        await addDoc(messagesCollection, {
-          senderId: "AI",
-          text: "Based on your conversation, I've noticed you're discussing [topic]. Here's some additional information that might be helpful...",
-          timestamp: serverTimestamp(),
-          aiInsightRequest: false,
-          aiInsightResponse: "AI insight response"
-        });
-      }, 1000);
-      
-      setAiResponse(aiRequestData.response);
-    } catch (error) {
-      console.error("Error asking AI:", error);
-      setError("Failed to process AI request");
+  const handleOpenAiChat = () => {
+    if (user && roomId) {
+      setIsAIChatOpen(true);
     }
   };
 
@@ -224,13 +180,23 @@ export default function ChatRoomPage() {
             Send
           </button>
           <button
-            onClick={handleAskAi}
+            onClick={handleOpenAiChat}
             className="bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600"
           >
             Ask AI
           </button>
         </div>
       </div>
+      
+      {/* AI Chat Modal */}
+      {user && (
+        <AIChatModal
+          isOpen={isAIChatOpen}
+          onClose={() => setIsAIChatOpen(false)}
+          userId={user.uid}
+          roomId={roomId}
+        />
+      )}
     </div>
   );
 }
