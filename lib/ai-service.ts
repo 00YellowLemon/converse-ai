@@ -1,9 +1,20 @@
-import { db, chatGoogleGenerativeAI } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { collection, addDoc, serverTimestamp, getDocs, query, orderBy } from 'firebase/firestore';
 
-interface AIMessage {
-  sender: "USER" | "AI";
-  text: string;
+interface DialogueMessage {
+  role: "user" | "other";
+  content: string;
+}
+
+interface CoachingMessage {
+  role: "user" | "ai";
+  content: string;
+}
+
+interface ConverseAIRequest {
+  user_input: string;
+  dialogue_history: DialogueMessage[];
+  coaching_history: CoachingMessage[];
 }
 
 export const sendMessageToAI = async (
@@ -30,23 +41,84 @@ export const sendMessageToAI = async (
       timestamp: serverTimestamp(),
     });
     
-    // In a real app, we would call the AI service here
-    // For example with the ChatGoogleGenerativeAI
-    let aiResponse: string;
+    // Fetch previous messages to build dialogue and coaching history
+    const previousMessagesQuery = query(messagesCollection, orderBy("timestamp", "asc"));
+    const messagesSnapshot = await getDocs(previousMessagesQuery);
     
-    try {
-      // Try to get a response from the AI
-      const result = await chatGoogleGenerativeAI.invoke([
-        { role: "user", content: userMessage }
-      ]);
+    // Build dialogue history and coaching history from previous messages
+    const dialogueHistory: DialogueMessage[] = [];
+    const coachingHistory: CoachingMessage[] = [];
+    
+    messagesSnapshot.docs.forEach((doc, index) => {
+      const data = doc.data();
       
-      aiResponse = result.content.toString();
+      // Skip the thinking message we just added
+      if (doc.id === thinkingDocRef.id) return;
+      
+      if (index % 2 === 0) { // User messages become dialogue history
+        dialogueHistory.push({
+          role: "user",
+          content: data.text
+        });
+      } else { // AI responses become coaching history
+        if (dialogueHistory.length > 0) {
+          // Add a placeholder "other" response for dialogue history
+          dialogueHistory.push({
+            role: "other",
+            content: "placeholder response"
+          });
+        }
+        
+        coachingHistory.push({
+          role: "user",
+          content: doc.id === thinkingDocRef.id ? userMessage : messagesSnapshot.docs[index-1]?.data()?.text || ""
+        });
+        
+        if (data.sender === "AI" && data.text !== "Thinking...") {
+          coachingHistory.push({
+            role: "ai",
+            content: data.text
+          });
+        }
+      }
+    });
+    
+    // Add the current message to coaching history
+    coachingHistory.push({
+      role: "user",
+      content: userMessage
+    });
+    
+    // Prepare request for the AI backend
+    const requestData: ConverseAIRequest = {
+      user_input: userMessage,
+      dialogue_history: dialogueHistory,
+      coaching_history: coachingHistory
+    };
+    
+    // Call hosted backend AI service
+    let aiResponse: string;
+    try {
+      const response = await fetch('https://converse-backend-ai.onrender.com/coach', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      aiResponse = data.response || "I'm sorry, I couldn't generate a response.";
     } catch (aiError) {
-      console.error("Error getting AI response:", aiError);
+      console.error("Error calling AI service:", aiError);
       aiResponse = "I'm sorry, I couldn't process your request at this time. Please try again later.";
     }
     
-    // Add AI response to Firestore
+    // Update the thinking message with the actual AI response
     await addDoc(messagesCollection, {
       sender: "AI",
       text: aiResponse,

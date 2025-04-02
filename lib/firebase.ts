@@ -1,7 +1,6 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
 import { getFirestore, doc, setDoc, collection, addDoc, getDocs, query, orderBy } from 'firebase/firestore';
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDAnH4Hm54GJ6h5gQMtExwJolE8FbHNBBg",
@@ -124,6 +123,4 @@ export const signUpWithGoogle = async (username: string) => {
   }, { merge: true });
 };
 
-const chatGoogleGenerativeAI = new ChatGoogleGenerativeAI({ modelName: "gemini-pro" });
-
-export { firebaseApp, chatGoogleGenerativeAI };
+export { firebaseApp };

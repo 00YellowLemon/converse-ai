@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
-import ChatMessage from "@/components/ChatMessage";
 import { cn } from "@/lib/utils";
 import { sendMessageToAI } from "@/lib/ai-service";
 
@@ -49,7 +48,19 @@ export default function AIChatModal({ isOpen, onClose, userId, roomId }: AIChatM
         };
       });
 
-      setMessages(updatedMessages);
+      // Filter out thinking messages if there's a newer AI message
+      const filteredMessages = updatedMessages.filter((msg, index, array) => {
+        if (msg.text === "Thinking..." && msg.sender === "AI") {
+          // Check if there's a newer AI message after this one
+          const hasNewerAIMessage = array.slice(index + 1).some(
+            laterMsg => laterMsg.sender === "AI" && laterMsg.text !== "Thinking..."
+          );
+          return !hasNewerAIMessage;
+        }
+        return true;
+      });
+
+      setMessages(filteredMessages);
       setTimeout(scrollToBottom, 100);
     });
 
@@ -80,7 +91,7 @@ export default function AIChatModal({ isOpen, onClose, userId, roomId }: AIChatM
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg w-full max-w-md h-[600px] flex flex-col">
         <div className="flex justify-between items-center p-4 border-b">
-          <h2 className="text-xl font-semibold">Chat with AI Assistant</h2>
+          <h2 className="text-xl font-semibold">Chat with Coach Assistant</h2>
           <button 
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700"
@@ -94,7 +105,7 @@ export default function AIChatModal({ isOpen, onClose, userId, roomId }: AIChatM
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.length === 0 ? (
             <div className="text-center text-gray-500 my-8">
-              No messages yet. Ask the AI assistant a question!
+              No messages yet. Ask the coach assistant a question!
             </div>
           ) : (
             messages.map((message) => (
@@ -104,7 +115,8 @@ export default function AIChatModal({ isOpen, onClose, userId, roomId }: AIChatM
                   "max-w-[80%] p-3 rounded-lg",
                   message.sender === "USER" 
                     ? "bg-blue-500 text-white ml-auto rounded-br-none" 
-                    : "bg-gray-200 text-gray-800 mr-auto rounded-bl-none"
+                    : "bg-gray-200 text-gray-800 mr-auto rounded-bl-none",
+                  message.text === "Thinking..." && "animate-pulse"
                 )}
               >
                 {message.text}
@@ -120,7 +132,7 @@ export default function AIChatModal({ isOpen, onClose, userId, roomId }: AIChatM
               type="text"
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
-              placeholder="Ask the AI assistant..."
+              placeholder="Ask the coach assistant..."
               className="flex-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
               disabled={isLoading}
               onKeyPress={(e) => {
