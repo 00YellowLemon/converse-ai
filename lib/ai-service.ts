@@ -1,5 +1,6 @@
 import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, getDocs, query, orderBy } from 'firebase/firestore';
+import axios from 'axios';
 
 interface DialogueMessage {
   role: "user" | "other";
@@ -99,20 +100,13 @@ export const sendMessageToAI = async (
     // Call hosted backend AI service
     let aiResponse: string;
     try {
-      const response = await fetch('https://converse-backend-ai.onrender.com/coach', {
-        method: 'POST',
+      const response = await axios.post('https://converse-backend-ai.onrender.com/coach', requestData, {
         headers: {
           'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestData)
+        }
       });
       
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      aiResponse = data.response || "I'm sorry, I couldn't generate a response.";
+      aiResponse = response.data.response || "I'm sorry, I couldn't generate a response.";
     } catch (aiError) {
       console.error("Error calling AI service:", aiError);
       aiResponse = "I'm sorry, I couldn't process your request at this time. Please try again later.";
