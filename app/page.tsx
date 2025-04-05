@@ -8,11 +8,11 @@ import { db, fetchRecentChats } from '@/lib/firebase';
 import { collection, doc, addDoc, onSnapshot, query, setDoc, orderBy, limit } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, Plus, UserCircle, Users } from "lucide-react";
+import { LogOut, MessageSquare, Plus, UserCircle, Users } from "lucide-react";
 import ChatTile from "@/components/ChatTile";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-// Type definitions
+import { auth } from "@/lib/firebase";
 interface UserData {
   uid: string;
   displayName: string;
@@ -49,7 +49,7 @@ interface RecentChatData {
 }
 
 export default function Home() {
-  const { user, loading, firebaseClient } = useContext(SessionContext);
+  const { user, loading } = useContext(SessionContext);
   const router = useRouter();
   const [users, setUsers] = useState<UserData[]>([]);
   const [chats, setChats] = useState<ChatData[]>([]);
@@ -237,6 +237,25 @@ export default function Home() {
     startNewChat();
   };
 
+  // Handle logout
+  const handleLogout = async () => {
+    try {
+      // Set user as offline first
+      if (user) {
+        const userDocRef = doc(collection(db, "users"), user.uid);
+        await setDoc(userDocRef, { online: false, lastActive: new Date() }, { merge: true });
+      }
+      
+      // Sign out from Firebase
+      await auth.signOut();
+      
+      // Redirect to login page
+      router.push("/login");
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
+  };
+
   // Filter users based on search query and exclude current user
   const filteredUsers = users.filter(userData => 
     // Only include users who are not the current user and match search query
@@ -270,6 +289,9 @@ export default function Home() {
 
   if (!user) return null;
 
+  // Determine display name for welcome message (username or email)
+  const welcomeName = user.displayName || user.email?.split('@')[0] || "there";
+
   return (
     <div className="flex h-screen bg-gray-50">
       
@@ -279,22 +301,18 @@ export default function Home() {
           <header className="mb-8">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">Welcome, {user.displayName}!</h1>
+                <h1 className="text-3xl font-bold text-gray-900">Welcome, {welcomeName}!</h1>
                 <p className="mt-1 text-gray-600">Connect with friends and colleagues</p>
               </div>
               <div className="flex items-center">
-                {user.photoURL ? (
-                  <div className="relative h-10 w-10 overflow-hidden rounded-full">
-                    <Image 
-                      src={user.photoURL} 
-                      alt={user.displayName || "User"}
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                ) : (
-                  <UserCircle className="h-10 w-10 text-gray-400" />
-                )}
+                <Button 
+                  variant="outline" 
+                  className="flex items-center gap-2 hover:bg-red-50 hover:text-red-600 transition-colors" 
+                  onClick={handleLogout}
+                >
+                  <LogOut className="h-4 w-4" />
+                  Logout
+                </Button>
               </div>
             </div>
           </header>

@@ -1,5 +1,5 @@
 import { db } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, getDocs, query, orderBy } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, getDocs, query, orderBy, where } from 'firebase/firestore';
 import axios from 'axios';
 
 interface DialogueMessage {
@@ -42,47 +42,60 @@ export const sendMessageToAI = async (
       timestamp: serverTimestamp(),
     });
     
-    // Fetch previous messages to build dialogue and coaching history
-    const previousMessagesQuery = query(messagesCollection, orderBy("timestamp", "asc"));
-    const messagesSnapshot = await getDocs(previousMessagesQuery);
+    // 1. Fetch regular chat messages between users (dialogue history)
+    const chatMessagesCollection = collection(db, `chats/${chatId}/messages`);
+    const chatMessagesQuery = query(chatMessagesCollection, orderBy("timestamp", "asc"));
+    const chatMessagesSnapshot = await getDocs(chatMessagesQuery);
     
-    // Build dialogue history and coaching history from previous messages
+    // Build dialogue history from regular chat messages
     const dialogueHistory: DialogueMessage[] = [];
+    
+    chatMessagesSnapshot.docs.forEach((doc) => {
+      const data = doc.data();
+      const messageRole = data.senderId === userId ? "user" : "other";
+      
+      dialogueHistory.push({
+        role: messageRole,
+        content: data.text
+      });
+    });
+    
+    // 2. Fetch previous AI conversation messages (coaching history)
+    const aiMessagesQuery = query(messagesCollection, orderBy("timestamp", "asc"));
+    const aiMessagesSnapshot = await getDocs(aiMessagesQuery);
+    
+    // Build coaching history from AI conversation
     const coachingHistory: CoachingMessage[] = [];
     
-    messagesSnapshot.docs.forEach((doc, index) => {
-      const data = doc.data();
+    // Process AI messages in pairs for coaching history
+    for (let i = 0; i < aiMessagesSnapshot.docs.length - 1; i++) {
+      const currentDoc = aiMessagesSnapshot.docs[i];
+      const currentData = currentDoc.data();
       
       // Skip the thinking message we just added
-      if (doc.id === thinkingDocRef.id) return;
+      if (currentDoc.id === thinkingDocRef.id) continue;
       
-      if (index % 2 === 0) { // User messages become dialogue history
-        dialogueHistory.push({
-          role: "user",
-          content: data.text
-        });
-      } else { // AI responses become coaching history
-        if (dialogueHistory.length > 0) {
-          // Add a placeholder "other" response for dialogue history
-          dialogueHistory.push({
-            role: "other",
-            content: "placeholder response"
-          });
-        }
-        
+      if (currentData.sender === "USER") {
+        // Add user message
         coachingHistory.push({
           role: "user",
-          content: doc.id === thinkingDocRef.id ? userMessage : messagesSnapshot.docs[index-1]?.data()?.text || ""
+          content: currentData.text
         });
         
-        if (data.sender === "AI" && data.text !== "Thinking...") {
-          coachingHistory.push({
-            role: "ai",
-            content: data.text
-          });
+        // Look for the corresponding AI response
+        if (i + 1 < aiMessagesSnapshot.docs.length) {
+          const nextDoc = aiMessagesSnapshot.docs[i + 1];
+          const nextData = nextDoc.data();
+          
+          if (nextData.sender === "AI" && nextData.text !== "Thinking...") {
+            coachingHistory.push({
+              role: "ai",
+              content: nextData.text
+            });
+          }
         }
       }
-    });
+    }
     
     // Add the current message to coaching history
     coachingHistory.push({
@@ -96,6 +109,10 @@ export const sendMessageToAI = async (
       dialogue_history: dialogueHistory,
       coaching_history: coachingHistory
     };
+
+    console.log("Dialogue history:", dialogueHistory);
+    console.log("Coaching history:", coachingHistory);
+    console.log("Sending to AI service:", JSON.stringify(requestData, null, 2));
     
     // Call hosted backend AI service
     let aiResponse: string;

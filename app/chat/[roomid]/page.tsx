@@ -24,6 +24,7 @@ export default function ChatRoomPage() {
   const { user, loading } = useContext(SessionContext);
   const [messages, setMessages] = useState<MessageData[]>([]);
   const [roomName, setRoomName] = useState<string>("");
+  const [otherUser, setOtherUser] = useState<{ username?: string; email: string } | null>(null);
   const [newMessage, setNewMessage] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [isAIChatOpen, setIsAIChatOpen] = useState<boolean>(false);
@@ -53,14 +54,23 @@ export default function ChatRoomPage() {
               const userDocRef = doc(db, "users", otherParticipantId);
               const userDoc = await getDoc(userDocRef);
               
-              if (userDoc.exists()) {
-                setRoomName(userDoc.data().displayName);
-              } else {
-                setRoomName("Chat Room");
-              }
+              const otherUserData = userDoc.data();
+              const otherUser: { username?: string; email: string } = {
+                username: otherUserData?.username,
+                email: otherUserData?.email || "No Email", // Fallback in case email is missing
+              };
+
+              setOtherUser(otherUser);
+              console.log("Other User:", otherUser);
             } else {
-              setRoomName(chatData.chatName || "Chat Room");
+              // Handle group chats or cases with no other participant differently
+              setOtherUser({ email: "Group Chat" }); // Example handling
+              console.log("Group Chat or No Other User");
             }
+
+            //For now just set room name as chat name
+            setRoomName(chatData.chatName || "Chat Room");
+
           } else {
             setError("Chat room not found");
             setRoomName("Chat Room");
@@ -134,7 +144,7 @@ export default function ChatRoomPage() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
-      <RoomHeader roomName={roomName} />
+      <RoomHeader roomName={roomName} otherUser={otherUser || {email: "Unknown"}} />
       
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mx-4 mt-2">

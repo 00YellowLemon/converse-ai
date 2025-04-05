@@ -88,7 +88,13 @@ export const fetchRecentChats = async () => {
   const recentChatsCollection = collection(db, 'recentChats');
   const recentChatsQuery = query(recentChatsCollection, orderBy("timestamp", "desc"));
   const snapshot = await getDocs(recentChatsQuery);
-  const recentChats = snapshot.docs.map(doc => doc.data());
+  const recentChats = snapshot.docs.map(doc => {
+    const data = doc.data();
+    return {
+      ...data,
+      timestamp: data.timestamp?.toMillis()
+    };
+  });
   return recentChats;
 };
 
