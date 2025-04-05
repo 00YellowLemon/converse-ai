@@ -4,11 +4,11 @@ import { useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { SessionContext } from "@/lib/session-context";
-import { db, fetchRecentChats } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import { collection, doc, addDoc, onSnapshot, query, setDoc, orderBy, limit } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { LogOut, MessageSquare, Plus, UserCircle, Users } from "lucide-react";
+import { LogOut, MessageSquare, UserCircle, Users } from "lucide-react";
 import ChatTile from "@/components/ChatTile";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -189,15 +189,7 @@ export default function Home() {
     return () => unsubscribe();
   }, [user]);
 
-  // Fetch recent chats
-  useEffect(() => {
-    const fetchChats = async () => {
-      const chats = await fetchRecentChats();
-      setRecentChats(chats);
-    };
-
-    fetchChats();
-  }, []);
+  
 
   // Handle sending a message
   const handleSendMessage = async (chatId: string, text: string) => {

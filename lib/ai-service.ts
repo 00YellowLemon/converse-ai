@@ -68,7 +68,8 @@ export const sendMessageToAI = async (
     const coachingHistory: CoachingMessage[] = [];
     
     // Process all AI messages except the thinking message we just added
-    for (let i = 0; i < aiMessagesSnapshot.docs.length; i++) {
+    // and the last user message (which will be sent as user_input)
+    for (let i = 0; i < aiMessagesSnapshot.docs.length - 2; i++) {
       const currentDoc = aiMessagesSnapshot.docs[i];
       const currentData = currentDoc.data();
       
@@ -88,13 +89,8 @@ export const sendMessageToAI = async (
       }
     }
     
-    // Add the current message to coaching history if it's not already there
-    if (!coachingHistory.some(msg => msg.role === "user" && msg.content === userMessage)) {
-      coachingHistory.push({
-        role: "user",
-        content: userMessage
-      });
-    }
+    // The current user message is NOT added to coaching history
+    // It will be sent as the user_input parameter only
     
     // Prepare request for the AI backend
     const requestData: ConverseAIRequest = {
@@ -116,7 +112,8 @@ export const sendMessageToAI = async (
         }
       });
       
-      aiResponse = response.data.response || "I'm sorry, I couldn't generate a response.";
+      aiResponse = response.data.feedback || "I'm sorry, I couldn't generate a response.";
+      console.log(response);
     } catch (aiError) {
       console.error("Error calling AI service:", aiError);
       aiResponse = "I'm sorry, I couldn't process your request at this time. Please try again later.";

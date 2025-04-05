@@ -144,7 +144,7 @@ export default function ChatRoomPage() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
-      <RoomHeader roomName={roomName} otherUser={otherUser || {email: "Unknown"}} />
+      <RoomHeader otherUser={otherUser || {email: "Unknown"}} />
       
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mx-4 mt-2">
