@@ -67,8 +67,8 @@ export const sendMessageToAI = async (
     // Build coaching history from AI conversation
     const coachingHistory: CoachingMessage[] = [];
     
-    // Process AI messages in pairs for coaching history
-    for (let i = 0; i < aiMessagesSnapshot.docs.length - 1; i++) {
+    // Process all AI messages except the thinking message we just added
+    for (let i = 0; i < aiMessagesSnapshot.docs.length; i++) {
       const currentDoc = aiMessagesSnapshot.docs[i];
       const currentData = currentDoc.data();
       
@@ -76,32 +76,25 @@ export const sendMessageToAI = async (
       if (currentDoc.id === thinkingDocRef.id) continue;
       
       if (currentData.sender === "USER") {
-        // Add user message
         coachingHistory.push({
           role: "user",
           content: currentData.text
         });
-        
-        // Look for the corresponding AI response
-        if (i + 1 < aiMessagesSnapshot.docs.length) {
-          const nextDoc = aiMessagesSnapshot.docs[i + 1];
-          const nextData = nextDoc.data();
-          
-          if (nextData.sender === "AI" && nextData.text !== "Thinking...") {
-            coachingHistory.push({
-              role: "ai",
-              content: nextData.text
-            });
-          }
-        }
+      } else if (currentData.sender === "AI" && currentData.text !== "Thinking...") {
+        coachingHistory.push({
+          role: "ai",
+          content: currentData.text
+        });
       }
     }
     
-    // Add the current message to coaching history
-    coachingHistory.push({
-      role: "user",
-      content: userMessage
-    });
+    // Add the current message to coaching history if it's not already there
+    if (!coachingHistory.some(msg => msg.role === "user" && msg.content === userMessage)) {
+      coachingHistory.push({
+        role: "user",
+        content: userMessage
+      });
+    }
     
     // Prepare request for the AI backend
     const requestData: ConverseAIRequest = {
