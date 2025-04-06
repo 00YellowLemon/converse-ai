@@ -5,12 +5,13 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { SessionContext } from "@/lib/session-context";
 import { db } from '@/lib/firebase';
-import { collection, doc, addDoc, onSnapshot, query, setDoc, orderBy, limit } from "firebase/firestore";
+import { collection, doc, addDoc, onSnapshot, query, setDoc, orderBy, limit, getDoc } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { LogOut, MessageSquare, UserCircle, Users } from "lucide-react";
-import ChatTile from "@/components/ChatTile";
+import { Input } from "@/components/ui/input";
+import { LogOut, MessageSquare, UserCircle, Users, Search } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import RecentChats from "@/components/RecentChats";
 
 import { auth } from "@/lib/firebase";
 interface UserData {
@@ -32,29 +33,11 @@ interface ChatData {
   chatName?: string;
 }
 
-interface MessageData {
-  messageId: string;
-  senderId: string;
-  text: string;
-  timestamp: Date;
-  aiInsightRequest?: boolean;
-  aiInsightResponse?: string;
-}
-
-interface RecentChatData {
-  chatId: string;
-  user: UserData;
-  lastMessage: string;
-  timestamp: Date;
-}
-
 export default function Home() {
   const { user, loading } = useContext(SessionContext);
   const router = useRouter();
   const [users, setUsers] = useState<UserData[]>([]);
   const [chats, setChats] = useState<ChatData[]>([]);
-  const [messages, setMessages] = useState<MessageData[]>([]);
-  const [recentChats, setRecentChats] = useState<RecentChatData[]>([]);
   const [isChatStarted, setIsChatStarted] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -134,77 +117,6 @@ export default function Home() {
     return () => unsubscribe();
   }, [user]);
 
-  // Listen for messages in example chat
-  useEffect(() => {
-    if (!user) return;
-
-    const messagesCollection = collection(db, "chats/exampleChatId/messages");
-    
-    const unsubscribe = onSnapshot(query(messagesCollection), (snapshot) => {
-      const updatedMessages: MessageData[] = snapshot.docs.map((doc) => {
-        const data = doc.data();
-        return {
-          messageId: doc.id,
-          senderId: data.senderId,
-          text: data.text,
-          timestamp: data.timestamp?.toDate(),
-          aiInsightRequest: data.aiInsightRequest,
-          aiInsightResponse: data.aiInsightResponse
-        } as MessageData;
-      });
-
-      setMessages(updatedMessages);
-    });
-
-    return () => unsubscribe();
-  }, [user]);
-
-  // Listen for recent chats - Updated to limit to 7 chats ordered by timestamp
-  useEffect(() => {
-    if (!user) return;
-
-    const recentChatsCollection = collection(db, "recentChats");
-    
-    // Create query with orderBy and limit to get most recent 7 chats
-    const recentChatsQuery = query(
-      recentChatsCollection, 
-      orderBy("timestamp", "desc"), 
-      limit(7)
-    );
-    
-    const unsubscribe = onSnapshot(recentChatsQuery, (snapshot) => {
-      const updatedRecentChats: RecentChatData[] = snapshot.docs.map((doc) => {
-        const data = doc.data();
-        return {
-          chatId: doc.id,
-          user: data.user,
-          lastMessage: data.lastMessage,
-          timestamp: data.timestamp?.toDate() || new Date()
-        } as RecentChatData;
-      });
-
-      setRecentChats(updatedRecentChats);
-    });
-
-    return () => unsubscribe();
-  }, [user]);
-
-  
-
-  // Handle sending a message
-  const handleSendMessage = async (chatId: string, text: string) => {
-    if (!user || !text.trim()) return;
-    
-    const messagesCollection = collection(db, `chats/${chatId}/messages`);
-    await addDoc(messagesCollection, {
-      senderId: user.uid,
-      text,
-      timestamp: new Date(),
-      aiInsightRequest: false,
-      aiInsightResponse: ""
-    });
-  };
-
   // Start a new chat
   const startNewChat = async (userId?: string): Promise<void> => {
     if (!user) return;
@@ -217,6 +129,7 @@ export default function Home() {
     const newChatRef = await addDoc(chatsCollection, {
       participants: participants,
       createdAt: new Date(),
+      updatedAt: new Date(),
       chatName: `Chat ${Date.now()}`
     });
     
@@ -309,14 +222,43 @@ export default function Home() {
             </div>
           </header>
           
+          {/* Recent Chats Section */}
+          <section className="mt-8 mb-10">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold">Recent Chats</h2>
+              <Button 
+                variant="outline" 
+                className="flex items-center gap-2 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                onClick={handleStartNewChat}
+              >
+                <MessageSquare className="h-4 w-4" />
+                New Chat
+              </Button>
+            </div>
+            
+            <RecentChats limit={7} />
+          </section>
+          
           {/* Tabs for All Users */}
-          <Tabs defaultValue="users" className="mt-8">
-            <TabsList className="grid w-full grid-cols-2 mb-6">
-              <TabsTrigger value="users" className="flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                Available Users
-              </TabsTrigger>
-            </TabsList>
+          <Tabs defaultValue="users" className="mt-10">
+            <div className="flex items-center justify-between mb-4">
+              <TabsList className="grid w-64 grid-cols-1">
+                <TabsTrigger value="users" className="flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Available Users
+                </TabsTrigger>
+              </TabsList>
+              
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search users..."
+                  className="pl-9 w-64"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </div>
             
             {/* Users Tab */}
             <TabsContent value="users">
@@ -355,7 +297,7 @@ export default function Home() {
                           </div>
                           {userData.lastActive && (
                             <span className="text-xs text-gray-400 mt-1">
-                              Last active: {new Date(userData.lastActive).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})
+                              Last active: {new Date(userData.lastActive).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                             </span>
                           )}
                         </div>
@@ -368,7 +310,8 @@ export default function Home() {
                             const existingChat = chats.find(chat => chat.participants.includes(userData.uid) && chat.participants.includes(user.uid));
                             if (existingChat) {
                               router.push(`/chat/${existingChat.chatId}`)
-                            } else { startNewChat(userData.uid);
+                            } else {
+                              startNewChat(userData.uid);
                             }
                           }}
                         >
@@ -388,22 +331,8 @@ export default function Home() {
               </div>
             </TabsContent>
           </Tabs>
-
-          {/* Recent Chats Section */}
-          <section className="mt-8">
-            <h2 className="text-2xl font-bold mb-4">Recent Chats</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {recentChats.map(chat => (
-                <ChatTile 
-                  key={chat.chatId}
-                  user={chat.user}
-                  lastMessage={chat.lastMessage}
-                  onClick={() => router.push(`/chat/${chat.chatId}`)}
-                />
-              ))}
-            </div>
-          </section>
         </div>
       </main>
     </div>
-  );};
+  );
+}
