@@ -2,15 +2,15 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 
 interface RoomHeaderProps {
-    otherUser: {
-        username?: string;
-        email: string;
-    };
+  otherUser: {
+    displayName?: string;
+    email?: string;
+  };
 }
 
 const RoomHeader: React.FC<RoomHeaderProps> = ({ otherUser }) => {
-    const router = useRouter();
-    const displayName = otherUser.username || otherUser.email;
+  const router = useRouter();
+    const displayName = otherUser.displayName || otherUser.email
 
     return (
         <div className="bg-white border-b px-4 py-3 flex items-center justify-between">

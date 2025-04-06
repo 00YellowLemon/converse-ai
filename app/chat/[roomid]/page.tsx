@@ -55,8 +55,8 @@ export default function ChatRoomPage() {
               const userDoc = await getDoc(userDocRef);
               
               const otherUserData = userDoc.data();
-              const otherUser: { username?: string; email: string } = {
-                username: otherUserData?.username,
+              const otherUser: { displayName?: string; email: string } = {
+                displayName: otherUserData?.displayName,
                 email: otherUserData?.email || "No Email", // Fallback in case email is missing
               };
 
