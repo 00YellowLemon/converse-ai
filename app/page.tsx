@@ -137,10 +137,7 @@ export default function Home() {
     router.push(`/chat/${newChatRef.id}`);
   };
 
-  // Start new chat wrapper to be used as a callback
-  const handleStartNewChat = () => {
-    startNewChat();
-  };
+
 
   // Handle logout
   const handleLogout = async () => {
@@ -225,15 +222,8 @@ export default function Home() {
           {/* Recent Chats Section */}
           <section className="mt-8 mb-10">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold">Recent Chats</h2>
-              <Button 
-                variant="outline" 
-                className="flex items-center gap-2 hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                onClick={handleStartNewChat}
-              >
-                <MessageSquare className="h-4 w-4" />
-                New Chat
-              </Button>
+              <h2 className="text-xl font-bold">Recent Chats</h2>
+              
             </div>
             
             <RecentChats limit={7} />

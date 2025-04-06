@@ -28,10 +28,10 @@ const ChatTile: FC<ChatTileProps> = ({ user, lastMessage, timestamp, onClick }) 
 
   return (
     <Card 
-      className="bg-white transition-all duration-300 hover:shadow-md cursor-pointer" 
+      className="bg-white  transition-all duration-300 hover:shadow-md cursor-pointer" 
       onClick={onClick}
     >
-      <CardHeader className="flex flex-row items-center gap-4 pb-2">
+      <CardHeader className="flex flex-row items-center gap-4 py-2">
         {user.profilePictureUrl ? (
           <div className="relative h-10 w-10 overflow-hidden rounded-full border-2 border-white shadow-sm">
             <Image

@@ -1,6 +1,6 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
-import { getFirestore, doc, setDoc, collection, addDoc, getDocs, query, orderBy, getDoc } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, collection, addDoc, getDocs, query, orderBy, getDoc, limit } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDAnH4Hm54GJ6h5gQMtExwJolE8FbHNBBg",
@@ -12,7 +12,7 @@ const firebaseConfig = {
   measurementId: "G-V3J4963LJ7"
 };
 
-let firebaseApp: FirebaseApp;
+export let firebaseApp: FirebaseApp;
 
 if (!getApps().length) {
   firebaseApp = initializeApp(firebaseConfig);
@@ -156,4 +156,44 @@ export const fetchRecentChats = async (userId: string) => {
       const otherUserData = otherUserDoc.data();
       
       // Get the last message from the chat
-      const messagesCollection = collection(db, `chats
+      const messagesCollection = collection(db, `chats/${chat.id}/messages`);
+      const messagesQuery = query(messagesCollection, orderBy("timestamp", "desc"), limit(1));
+      const messagesSnapshot = await getDocs(messagesQuery);
+      
+      let lastMessage = "No messages yet";
+      let timestamp = chat.updatedAt ? new Date(chat.updatedAt.seconds * 1000) : new Date();
+      
+      if (!messagesSnapshot.empty) {
+        const messageData = messagesSnapshot.docs[0].data();
+        lastMessage = messageData.text;
+        timestamp = messageData.timestamp.toDate();
+      }
+      
+      return {
+        chatId: chat.id,
+        user: {
+          uid: otherUserId,
+          displayName: otherUserData.displayName,
+          email: otherUserData.email,
+          profilePictureUrl: otherUserData.profilePictureUrl
+        },
+        lastMessage,
+        timestamp,
+        updatedAt: chat.updatedAt ? new Date(chat.updatedAt.seconds * 1000) : new Date()
+      };
+    });
+    
+    const recentChats = (await Promise.all(recentChatsPromises)).filter(Boolean);
+    
+    return recentChats.sort((a, b) => {
+      if (!a) return 1;
+      if (!b) return -1;
+
+      return b.timestamp.getTime() - a.timestamp.getTime();
+    });
+
+  } catch (error) {
+    console.error("Error fetching recent chats:", error);
+    return [];
+  }
+};
