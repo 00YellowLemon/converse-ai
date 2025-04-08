@@ -1,6 +1,6 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
-import { getFirestore, doc, setDoc, collection, addDoc, getDocs, query, orderBy, getDoc, limit } from 'firebase/firestore';
+import { getFirestore, doc, where, setDoc, collection, addDoc, getDocs, query, orderBy, getDoc, limit, updateDoc } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDAnH4Hm54GJ6h5gQMtExwJolE8FbHNBBg",
@@ -82,7 +82,8 @@ export const updateRecentChat = async (chatId: string, userId: string, otherUser
   }
 };
 
-// Modified addMessageToFirestore function to also update recent chats
+// Modified addMessageToFirestore function to also update chat's updatedAt timestamp
+// Modified addMessageToFirestore function to update chat's updatedAt field
 export const addMessageToFirestore = async (chatId: string, message: any) => {
   try {
     // Add message to the chat
@@ -93,20 +94,12 @@ export const addMessageToFirestore = async (chatId: string, message: any) => {
       timestamp: new Date(),
     });
     
-    // Get chat document to find the other participant
-    const chatDoc = await getDoc(doc(db, 'chats', chatId));
-    if (!chatDoc.exists()) return;
+    // Update the chat document's updatedAt field
+    const chatDocRef = doc(db, 'chats', chatId);
+    await setDoc(chatDocRef, {
+      updatedAt: new Date()
+    }, { merge: true });
     
-    const chatData = chatDoc.data();
-    const participants = chatData.participants || [];
-    
-    // Find the other user's ID (not the sender)
-    const otherUserId = participants.find((id: string) => id !== message.senderId);
-    
-    if (otherUserId) {
-      // Update recent chats for both participants
-      await updateRecentChat(chatId, message.senderId, otherUserId, message.text);
-    }
   } catch (error) {
     console.error("Error adding message to Firestore:", error);
   }
@@ -136,11 +129,14 @@ export const fetchRecentChats = async (userId: string) => {
   try {
     // Get all chats the user is a participant in
     const chatsCollection = collection(db, 'chats');
-    const chatsSnapshot = await getDocs(chatsCollection);
+    const chatsQuery = query(chatsCollection, 
+      where("participants", "array-contains", userId),
+      orderBy("updatedAt", "desc")
+    );
+    const chatsSnapshot = await getDocs(chatsQuery);
     
     const userChats = chatsSnapshot.docs
-      .map(doc => ({ id: doc.id, ...doc.data() }))
-      .filter((chat: any) => chat.participants && chat.participants.includes(userId));
+      .map(doc => ({ id: doc.id, ...doc.data() }));
     
     // For each chat, get the last message and other participant info
     const recentChatsPromises = userChats.map(async (chat: any) => {
@@ -159,6 +155,11 @@ export const fetchRecentChats = async (userId: string) => {
       const messagesCollection = collection(db, `chats/${chat.id}/messages`);
       const messagesQuery = query(messagesCollection, orderBy("timestamp", "desc"), limit(1));
       const messagesSnapshot = await getDocs(messagesQuery);
+      
+      // Only include chats that have at least one message
+      if (messagesSnapshot.empty) {
+        return null;
+      }
       
       let lastMessage = "No messages yet";
       let timestamp = chat.updatedAt ? new Date(chat.updatedAt.seconds * 1000) : new Date();

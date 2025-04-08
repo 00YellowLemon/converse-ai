@@ -14,6 +14,7 @@ interface ChatData {
   updatedAt: Date;
   chatName?: string;
   lastMessage?: string;
+  hasMessages: boolean; // New property to track if chat has messages
 }
 
 interface UserData {
@@ -51,35 +52,40 @@ const RecentChats: FC<RecentChatsProps> = ({ limit: chatLimit = 7 }) => {
         );
         
         const chatsSnapshot = await getDocs(chatsQuery);
-        const chatsList: ChatData[] = [];
+        const chatsData: ChatData[] = [];
         
         for (const chatDoc of chatsSnapshot.docs) {
           const chatData = chatDoc.data();
           
           // Get the last message
           const messagesCollection = collection(db, `chats/${chatDoc.id}/messages`);
-          const messagesQuery = query(messagesCollection, orderBy("timestamp", "desc"));
+          const messagesQuery = query(messagesCollection, orderBy("timestamp", "desc"), limit(1));
           const messagesSnapshot = await getDocs(messagesQuery);
           
-          const lastMessage = messagesSnapshot.docs.length > 0 
+          const hasMessages = messagesSnapshot.docs.length > 0;
+          const lastMessage = hasMessages 
             ? messagesSnapshot.docs[0].data().text 
             : "No messages yet";
           
-          chatsList.push({
-            chatId: chatDoc.id,
-            participants: chatData.participants,
-            createdAt: chatData.createdAt.toDate(),
-            updatedAt: chatData.updatedAt.toDate(),
-            chatName: chatData.chatName,
-            lastMessage
-          });
+          // Only add chats that have at least one message
+          if (hasMessages) {
+            chatsData.push({
+              chatId: chatDoc.id,
+              participants: chatData.participants,
+              createdAt: chatData.createdAt.toDate(),
+              updatedAt: chatData.updatedAt.toDate(),
+              chatName: chatData.chatName,
+              lastMessage,
+              hasMessages
+            });
+          }
         }
         
-        setChats(chatsList);
+        setChats(chatsData);
         
         // Fetch user data for all participants
         const userIds = new Set<string>();
-        chatsList.forEach(chat => {
+        chatsData.forEach(chat => {
           chat.participants.forEach(participantId => {
             if (participantId !== user.uid) {
               userIds.add(participantId);
