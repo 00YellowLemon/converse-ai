@@ -14,7 +14,8 @@ interface ChatData {
   updatedAt: Date;
   chatName?: string;
   lastMessage?: string;
-  hasMessages: boolean; // New property to track if chat has messages
+  lastMessageTimestamp?: Date; // Add this field to track last message timestamp
+  hasMessages: boolean;
 }
 
 interface UserData {
@@ -63,9 +64,14 @@ const RecentChats: FC<RecentChatsProps> = ({ limit: chatLimit = 7 }) => {
           const messagesSnapshot = await getDocs(messagesQuery);
           
           const hasMessages = messagesSnapshot.docs.length > 0;
-          const lastMessage = hasMessages 
-            ? messagesSnapshot.docs[0].data().text 
-            : "No messages yet";
+          let lastMessage = "No messages yet";
+          let lastMessageTimestamp = chatData.updatedAt.toDate();
+          
+          if (hasMessages) {
+            const messageData = messagesSnapshot.docs[0].data();
+            lastMessage = messageData.text;
+            lastMessageTimestamp = messageData.timestamp.toDate();
+          }
           
           // Only add chats that have at least one message
           if (hasMessages) {
@@ -76,10 +82,16 @@ const RecentChats: FC<RecentChatsProps> = ({ limit: chatLimit = 7 }) => {
               updatedAt: chatData.updatedAt.toDate(),
               chatName: chatData.chatName,
               lastMessage,
+              lastMessageTimestamp, // Store the actual message timestamp
               hasMessages
             });
           }
         }
+        
+        // Sort chats by the last message timestamp
+        chatsData.sort((a, b) => {
+          return (b.lastMessageTimestamp?.getTime() || 0) - (a.lastMessageTimestamp?.getTime() || 0);
+        });
         
         setChats(chatsData);
         
@@ -165,7 +177,7 @@ const RecentChats: FC<RecentChatsProps> = ({ limit: chatLimit = 7 }) => {
               displayName: chat.chatName || "Unknown",
             }}
             lastMessage={chat.lastMessage || "No messages"}
-            timestamp={chat.updatedAt}
+            timestamp={chat.lastMessageTimestamp || chat.updatedAt} // Use the actual message timestamp
             onClick={() => router.push(`/chat/${chat.chatId}`)}
           />
         );

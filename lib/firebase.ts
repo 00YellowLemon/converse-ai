@@ -6,7 +6,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyDAnH4Hm54GJ6h5gQMtExwJolE8FbHNBBg",
   authDomain: "prod-ai-dd945.firebaseapp.com",
   projectId: "prod-ai-dd945",
-  storageBucket: "prod-ai-dd945.firebasestorage.app",
+  storageBucket: "prod-ai-dd945.appspot.com",
   messagingSenderId: "339827130138",
   appId: "1:339827130138:web:0f785b198075e5d654b6a3",
   measurementId: "G-V3J4963LJ7"
@@ -45,17 +45,17 @@ export const addUserToFirestore = async (user: any) => {
 export const addChatToFirestore = async (chat: any, isChatStarted: boolean) => {
   if (isChatStarted) {
     const chatRef = collection(db, 'chats');
+    const timestamp = new Date();
     await addDoc(chatRef, {
       chatId: chat.chatId,
       participants: chat.participants,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: timestamp,
+      updatedAt: timestamp, // Initialize with current timestamp
       chatName: chat.chatName
     });
   }
 };
 
-// Update recentChats when a new message is sent
 export const updateRecentChat = async (chatId: string, userId: string, otherUserId: string, messageText: string) => {
   try {
     // First, get the other user's information
@@ -63,6 +63,7 @@ export const updateRecentChat = async (chatId: string, userId: string, otherUser
     if (!otherUserDoc.exists()) return;
     
     const otherUserData = otherUserDoc.data();
+    const timestamp = new Date();
     
     // Create/update entry in recentChats collection
     const recentChatRef = doc(db, 'recentChats', chatId);
@@ -75,30 +76,47 @@ export const updateRecentChat = async (chatId: string, userId: string, otherUser
         profilePictureUrl: otherUserData.profilePictureUrl
       },
       lastMessage: messageText,
-      timestamp: new Date()
+      timestamp: timestamp
+    }, { merge: true });
+
+    // Also update the chat's updatedAt field
+    const chatDocRef = doc(db, 'chats', chatId);
+    await updateDoc(chatDocRef, {
+      updatedAt: timestamp
     });
   } catch (error) {
     console.error("Error updating recent chat:", error);
   }
 };
 
-// Modified addMessageToFirestore function to also update chat's updatedAt timestamp
-// Modified addMessageToFirestore function to update chat's updatedAt field
 export const addMessageToFirestore = async (chatId: string, message: any) => {
   try {
+    // Create a timestamp for this message
+    const messageTimestamp = new Date();
+    
     // Add message to the chat
     const messageRef = collection(db, `chats/${chatId}/messages`);
     await addDoc(messageRef, {
       senderId: message.senderId,
       text: message.text,
-      timestamp: new Date(),
+      timestamp: messageTimestamp,
     });
     
     // Update the chat document's updatedAt field
     const chatDocRef = doc(db, 'chats', chatId);
-    await setDoc(chatDocRef, {
-      updatedAt: new Date()
-    }, { merge: true });
+    await updateDoc(chatDocRef, {
+      updatedAt: messageTimestamp
+    });
+
+    // Update recent chats if this is a user-to-user message
+    if (message.receiverId && message.senderId) {
+      await updateRecentChat(
+        chatId, 
+        message.senderId, 
+        message.receiverId, 
+        message.text
+      );
+    }
     
   } catch (error) {
     console.error("Error adding message to Firestore:", error);
@@ -162,7 +180,7 @@ export const fetchRecentChats = async (userId: string) => {
       }
       
       let lastMessage = "No messages yet";
-      let timestamp = chat.updatedAt ? new Date(chat.updatedAt.seconds * 1000) : new Date();
+      let timestamp = chat.updatedAt ? chat.updatedAt.toDate() : new Date();
       
       if (!messagesSnapshot.empty) {
         const messageData = messagesSnapshot.docs[0].data();
@@ -180,7 +198,7 @@ export const fetchRecentChats = async (userId: string) => {
         },
         lastMessage,
         timestamp,
-        updatedAt: chat.updatedAt ? new Date(chat.updatedAt.seconds * 1000) : new Date()
+        updatedAt: chat.updatedAt ? chat.updatedAt.toDate() : new Date()
       };
     });
     
@@ -189,7 +207,6 @@ export const fetchRecentChats = async (userId: string) => {
     return recentChats.sort((a, b) => {
       if (!a) return 1;
       if (!b) return -1;
-
       return b.timestamp.getTime() - a.timestamp.getTime();
     });
 
