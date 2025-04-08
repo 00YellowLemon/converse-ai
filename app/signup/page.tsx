@@ -34,7 +34,7 @@ export default function SignUpPage() {
         lastActive: new Date(),
         profilePictureUrl: user.photoURL
       }, { merge: true });
-      router.push("/");
+      router.push("/dashboard");
     } catch (err: any) {
       console.error("Sign-up error:", err.code, err.message);
       if (err.code === "auth/popup-closed-by-user") {
@@ -63,7 +63,7 @@ export default function SignUpPage() {
         lastActive: new Date(),
         profilePictureUrl: user.photoURL
       }, { merge: true });
-      router.push("/");
+      router.push("/dashboard");
     } catch (err: any) {
       console.error("Sign-up error:", err.code, err.message);
       setError(err.message);

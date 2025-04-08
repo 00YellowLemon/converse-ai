@@ -1,328 +1,169 @@
-"use client"
+"use client";
 
-import { useContext, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import Image from "next/image";
-import { SessionContext } from "@/lib/session-context";
-import { db } from '@/lib/firebase';
-import { collection, doc, addDoc, onSnapshot, query, setDoc, orderBy, limit, getDoc } from "firebase/firestore";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { LogOut, MessageSquare, UserCircle, Users, Search } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import RecentChats from "@/components/RecentChats";
+import { MessageSquare, Users, Shield, Sparkles } from 'lucide-react';
 
-import { auth } from "@/lib/firebase";
-interface UserData {
-  uid: string;
-  displayName: string;
-  email: string;
-  photoURL: string;
-  online?: boolean;
-  createdAt?: Date;
-  lastActive?: Date;
-  profilePictureUrl?: string;
-}
-
-interface ChatData {
-  chatId: string;
-  participants: string[];
-  createdAt: Date;
-  updatedAt: Date;
-  chatName?: string;
-}
-
-export default function Home() {
-  const { user, loading } = useContext(SessionContext);
+export default function LandingPage() {
   const router = useRouter();
-  const [users, setUsers] = useState<UserData[]>([]);
-  const [chats, setChats] = useState<ChatData[]>([]);
-  const [isChatStarted, setIsChatStarted] = useState<boolean>(false);
-  const [searchQuery, setSearchQuery] = useState<string>("");
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-
-  // Redirect to login if not authenticated
-  useEffect(() => { 
-    if (!loading && !user) {
-      router.push("/login");
-    } else if (!loading && user) {
-      setIsLoading(false);
-    }
-  }, [user, loading, router]);
-
-  // Set user data in Firestore
-  useEffect(() => {
-    if (!user) return;
-
-    const usersCollection = collection(db, "users");
-    const userDocRef = doc(usersCollection, user.uid);
-    const setUserData = async () => {
-      await setDoc(userDocRef, {
-        uid: user.uid,
-        displayName: user.displayName,
-        email: user.email,
-        photoURL: user.photoURL,
-        online: true,
-        createdAt: new Date(),
-        lastActive: new Date(),
-        profilePictureUrl: user.photoURL
-      }, { merge: true });
-    };
-    
-    setUserData();
-
-    const unsubscribe = onSnapshot(query(usersCollection), (snapshot) => {
-      const updatedUsers: UserData[] = snapshot.docs.map((doc) => {
-        const data = doc.data();
-        return {
-          uid: data.uid,
-          displayName: data.displayName,
-          email: data.email,
-          photoURL: data.photoURL,
-          online: data.online,
-          createdAt: data.createdAt?.toDate(),
-          lastActive: data.lastActive?.toDate(),
-          profilePictureUrl: data.profilePictureUrl
-        } as UserData;
-      });
-
-      setUsers(updatedUsers);
-    });
-
-    return () => unsubscribe();
-  }, [user]);
-
-  // Listen for chats
-  useEffect(() => {
-    if (!user) return;
-
-    const chatsCollection = collection(db, "chats");
-    
-    const unsubscribe = onSnapshot(query(chatsCollection), (snapshot) => {
-      const updatedChats: ChatData[] = snapshot.docs.map((doc) => {
-        const data = doc.data();
-        return {
-          chatId: doc.id,
-          participants: data.participants,
-          createdAt: data.createdAt?.toDate(),
-          updatedAt: data.updatedAt?.toDate(),
-          chatName: data.chatName
-        } as ChatData;
-      });
-
-      setChats(updatedChats);
-    });
-
-    return () => unsubscribe();
-  }, [user]);
-
-  // Start a new chat
-  const startNewChat = async (userId?: string): Promise<void> => {
-    if (!user) return;
-    
-    const chatsCollection = collection(db, "chats");
-    const participants = [user.uid];
-    if (userId) {
-      participants.push(userId);
-    }
-    const newChatRef = await addDoc(chatsCollection, {
-      participants: participants,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      chatName: `Chat ${Date.now()}`
-    });
-    
-    setIsChatStarted(true);
-    router.push(`/chat/${newChatRef.id}`);
-  };
-
-
-
-  // Handle logout
-  const handleLogout = async () => {
-    try {
-      // Set user as offline first
-      if (user) {
-        const userDocRef = doc(collection(db, "users"), user.uid);
-        await setDoc(userDocRef, { online: false, lastActive: new Date() }, { merge: true });
-      }
-      
-      // Sign out from Firebase
-      await auth.signOut();
-      
-      // Redirect to login page
-      router.push("/login");
-    } catch (error) {
-      console.error("Error signing out:", error);
-    }
-  };
-
-  // Filter users based on search query and exclude current user
-  const filteredUsers = users.filter(userData => 
-    // Only include users who are not the current user and match search query
-    userData.uid !== user?.uid && (
-      userData.displayName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      userData.email?.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-  );
-
-  // Loading screen
-  if (loading || isLoading) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-gray-50">
-       <div className="flex flex-col items-center space-y-4">
-          <div className="h-16 w-16 animate-spin rounded-full border-b-2 border-t-2 border-blue-500"></div>
-          <p className="text-xl font-medium text-gray-700">Loading...</p>
-        </div>
-        
-        {/* AI Chat Button - Fixed position */}
-        <div className="fixed bottom-6 right-6">
-          <Button 
-            onClick={() => router.push('/chat')}
-            className="h-14 w-14 rounded-full shadow-lg bg-blue-600 hover:bg-blue-700 transition-all duration-300 p-0 flex items-center justify-center"
-          >
-            <MessageSquare className="h-6 w-6" />
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) return null;
-
-  // Determine display name for welcome message (username or email)
-  const welcomeName = user.displayName || user.email?.split('@')[0] || "there";
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      
-      <main className="flex-1 overflow-auto p-6">
-        <div className="mx-auto max-w-6xl">
-          {/* Header section */}
-          <header className="mb-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">Welcome, {welcomeName}!</h1>
-                <p className="mt-1 text-gray-600">Connect with friends and colleagues</p>
-              </div>
-              <div className="flex items-center">
-                <Button 
-                  variant="outline" 
-                  className="flex items-center gap-2 hover:bg-red-50 hover:text-red-600 transition-colors" 
-                  onClick={handleLogout}
-                >
-                  <LogOut className="h-4 w-4" />
-                  Logout
-                </Button>
-              </div>
-            </div>
-          </header>
-          
-          {/* Recent Chats Section */}
-          <section className="mt-8 mb-10">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold">Recent Chats</h2>
-              
-            </div>
-            
-            <RecentChats limit={7} />
-          </section>
-          
-          {/* Tabs for All Users */}
-          <Tabs defaultValue="users" className="mt-10">
-            <div className="flex items-center justify-between mb-4">
-              <TabsList className="grid w-64 grid-cols-1">
-                <TabsTrigger value="users" className="flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  Available Users
-                </TabsTrigger>
-              </TabsList>
-              
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Search users..."
-                  className="pl-9 w-64"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-            </div>
-            
-            {/* Users Tab */}
-            <TabsContent value="users">
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {filteredUsers.length > 0 ? (
-                  filteredUsers.map((userData) => (
-                    <Card
-                      key={userData.uid}
-                      className="bg-white transition-all duration-300 hover:shadow-md"
-                    >
-                      <CardHeader className="flex flex-row items-center gap-4 pb-2">
-                        {userData.profilePictureUrl ? (
-                          <div className="relative h-10 w-10 overflow-hidden rounded-full border-2 border-white shadow-sm">
-                            <Image 
-                              src={userData.profilePictureUrl} 
-                              alt={userData.displayName || "User"}
-                              fill
-                              className="object-cover"
-                            />
-                          </div>
-                        ) : (
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-600">
-                            <UserCircle className="h-6 w-6" />
-                          </div>
-                        )}
-                        <div>
-                          <CardTitle className="text-lg font-medium">{userData.displayName}</CardTitle>
-                          <p className="text-sm text-gray-500">{userData.email}</p>
-                        </div>
-                        <div className="ml-auto flex flex-col items-end">
-                          <div className="flex items-center">
-                            <div className={`h-2.5 w-2.5 rounded-full ${userData.online ? 'bg-green-500' : 'bg-gray-300'} mr-1.5`}></div>
-                            <span className="text-xs font-medium text-gray-500">
-                              {userData.online ? 'Online' : 'Offline'}
-                            </span>
-                          </div>
-                          {userData.lastActive && (
-                            <span className="text-xs text-gray-400 mt-1">
-                              Last active: {new Date(userData.lastActive).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                            </span>
-                          )}
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <Button 
-                          variant="outline" 
-                          className="w-full hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                          onClick={() => {
-                            const existingChat = chats.find(chat => chat.participants.includes(userData.uid) && chat.participants.includes(user.uid));
-                            if (existingChat) {
-                              router.push(`/chat/${existingChat.chatId}`)
-                            } else {
-                              startNewChat(userData.uid);
-                            }
-                          }}
-                        >
-                          <MessageSquare className="mr-2 h-4 w-4" />
-                          Message
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  ))
-                ) : (
-                  <div className="col-span-full text-center py-12 bg-white rounded-lg shadow-sm">
-                    <Users className="h-12 w-12 mx-auto text-gray-300 mb-3" />
-                    <p className="text-lg font-medium text-gray-700">No users match your search</p>
-                    <p className="text-gray-500 mt-1">Try adjusting your search query</p>
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-          </Tabs>
+    <div className="min-h-screen flex flex-col">
+      {/* Navbar */}
+      <nav className="bg-white shadow-sm py-4 px-6 md:px-10">
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+          <div className="flex items-center space-x-2">
+            <MessageSquare className="h-8 w-8 text-blue-600" />
+            <span className="text-2xl font-bold text-blue-600">ConverseAI</span>
+          </div>
+          <div className="flex space-x-4">
+            <Button 
+              variant="ghost" 
+              className="text-gray-700 hover:text-blue-600"
+              onClick={() => router.push('/login')}
+            >
+              Login
+            </Button>
+            <Button 
+              className="bg-blue-600 hover:bg-blue-700"
+              onClick={() => router.push('/signup')}
+            >
+              Sign Up
+            </Button>
+          </div>
         </div>
-      </main>
+      </nav>
+
+      {/* Hero Section */}
+      <section className="flex-1 bg-gradient-to-b from-blue-50 to-white">
+        <div className="max-w-7xl mx-auto px-6 py-16 md:py-24 flex flex-col md:flex-row items-center">
+          <div className="w-full md:w-1/2 mb-12 md:mb-0">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
+              Connect, Chat, <span className="text-blue-600">Collaborate</span>
+            </h1>
+            <p className="text-lg md:text-xl text-gray-600 mb-8">
+              Experience seamless communication with friends and colleagues, enhanced by AI-powered conversation assistance.
+            </p>
+            <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
+              <Button 
+                size="lg"
+                className="bg-blue-600 hover:bg-blue-700 text-lg py-6 px-8"
+                onClick={() => router.push('/signup')}
+              >
+                Get Started
+              </Button>
+              <Button 
+                size="lg"
+                variant="outline" 
+                className="border-blue-600 text-blue-600 hover:bg-blue-50 text-lg py-6 px-8"
+                onClick={() => router.push('/login')}
+              >
+                Login
+              </Button>
+            </div>
+          </div>
+          <div className="w-full md:w-1/2 flex justify-center">
+            <div className="relative w-full max-w-md h-[400px]">
+              <div className="absolute w-full h-full rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 blur-xl opacity-20"></div>
+              <div className="absolute w-full h-full bg-white/80 backdrop-blur-md rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+                <div className="p-4 border-b border-gray-100">
+                  <div className="flex items-center space-x-2">
+                    <div className="h-3 w-3 rounded-full bg-red-400"></div>
+                    <div className="h-3 w-3 rounded-full bg-yellow-400"></div>
+                    <div className="h-3 w-3 rounded-full bg-green-400"></div>
+                  </div>
+                </div>
+                <div className="p-4 h-[350px] overflow-y-auto">
+                  <div className="bg-blue-100 rounded-lg p-3 max-w-[70%] mb-4">
+                    <p className="text-gray-800">Hey! How's the project coming along?</p>
+                  </div>
+                  <div className="bg-gray-100 rounded-lg p-3 max-w-[70%] ml-auto mb-4">
+                    <p className="text-gray-800">Just finished the first milestone! Need to discuss the next steps.</p>
+                  </div>
+                  <div className="bg-blue-100 rounded-lg p-3 max-w-[70%] mb-4">
+                    <p className="text-gray-800">Great! Let's schedule a call tomorrow.</p>
+                  </div>
+                  <div className="bg-purple-100 rounded-lg p-3 max-w-[80%] mb-4 border border-purple-200">
+                    <p className="text-gray-800"><span className="text-purple-600 font-medium">AI Assistant:</span> I've added a calendar invite for tomorrow at 2 PM based on both your available times.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="bg-white py-16 md:py-24">
+        <div className="max-w-7xl mx-auto px-6">
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">Why Choose ConnectAI?</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+            {/* Feature 1 */}
+            <div className="bg-blue-50 rounded-xl p-8 transition-all hover:shadow-lg">
+              <div className="bg-blue-100 rounded-full w-14 h-14 flex items-center justify-center mb-6">
+                <MessageSquare className="h-7 w-7 text-blue-600" />
+              </div>
+              <h3 className="text-xl font-bold mb-3">Real-time Messaging</h3>
+              <p className="text-gray-600">Connect instantly with your contacts through our seamless real-time messaging platform.</p>
+            </div>
+            
+            {/* Feature 2 */}
+            <div className="bg-purple-50 rounded-xl p-8 transition-all hover:shadow-lg">
+              <div className="bg-purple-100 rounded-full w-14 h-14 flex items-center justify-center mb-6">
+                <Sparkles className="h-7 w-7 text-purple-600" />
+              </div>
+              <h3 className="text-xl font-bold mb-3">AI Assistant</h3>
+              <p className="text-gray-600">Get intelligent suggestions and assistance from our built-in AI coach to enhance your conversations.</p>
+            </div>
+            
+            {/* Feature 3 */}
+            <div className="bg-green-50 rounded-xl p-8 transition-all hover:shadow-lg">
+              <div className="bg-green-100 rounded-full w-14 h-14 flex items-center justify-center mb-6">
+                <Users className="h-7 w-7 text-green-600" />
+              </div>
+              <h3 className="text-xl font-bold mb-3">User Presence</h3>
+              <p className="text-gray-600">See when your contacts are online and stay connected with real-time presence indicators.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="bg-gradient-to-r from-blue-600 to-purple-600 py-16">
+        <div className="max-w-4xl mx-auto px-6 text-center">
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">Ready to transform your conversations?</h2>
+          <p className="text-blue-100 text-lg mb-10">Join thousands of users who have elevated their communication experience.</p>
+          <Button 
+            size="lg"
+            className="bg-white text-blue-600 hover:bg-blue-50 text-lg px-8 py-6"
+            onClick={() => router.push('/signup')}
+          >
+            Get Started For Free
+          </Button>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-gray-900 text-gray-300 py-10">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex flex-col md:flex-row justify-between items-center">
+            <div className="flex items-center space-x-2 mb-6 md:mb-0">
+              <MessageSquare className="h-6 w-6 text-blue-400" />
+              <span className="text-xl font-bold text-white">ConverseAI</span>
+            </div>
+            <div className="flex space-x-8">
+              <a href="#" className="hover:text-white transition-colors">About</a>
+              <a href="#" className="hover:text-white transition-colors">Features</a>
+              <a href="#" className="hover:text-white transition-colors">Privacy</a>
+              <a href="#" className="hover:text-white transition-colors">Terms</a>
+            </div>
+          </div>
+          <div className="mt-8 pt-8 border-t border-gray-800 text-center text-sm">
+            <p>&copy; {new Date().getFullYear()} ConverseAI. All rights reserved.</p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
