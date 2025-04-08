@@ -40,7 +40,7 @@ export const SessionContextProvider: React.FC<SessionContextProviderProps> = ({ 
       } else {
         setUser(null);
         if (router) {
-          router.push('/login');
+          router.push('/');
         }
       }
       setLoading(false);
